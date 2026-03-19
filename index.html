@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Grammar Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0ede6;
+  --card: #faf8f4;
+  --ink: #1c1a14;
+  --ink-soft: #6b6454;
+  --border: #ddd8cc;
+  --accent: #2a5c8a;
+  --accent-light: #e8f0f7;
+  --green: #2d7a4f;
+  --green-light: #e6f4ec;
+  --red: #b83232;
+  --red-light: #faeaea;
+  --gold: #b87a00;
+  --gold-light: #fef6e4;
+  --timer-warn: #c0392b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ── SCREENS ── */
+.screen { display:none; min-height:100vh; }
+.screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; }
+
+/* ── LOGIN ── */
+#login { gap:1.5rem; text-align:center; }
+.logo { font-family:'Fraunces',serif; font-size:1.8rem; color:var(--accent); }
+.logo span { font-style:italic; }
+#login h2 { font-family:'Fraunces',serif; font-size:2.2rem; font-weight:400; }
+.login-card {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:1.2rem; padding:2rem 2.5rem;
+  width:100%; max-width:400px;
+  box-shadow:0 2px 20px rgba(0,0,0,0.06);
+  display:flex; flex-direction:column; gap:1.2rem;
+}
+.field label { display:block; font-size:0.8rem; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:0.5rem; }
+.field input {
+  width:100%; padding:0.8rem 1rem;
+  border:1.5px solid var(--border); border-radius:0.6rem;
+  font-family:'DM Sans',sans-serif; font-size:1.1rem;
+  background:var(--bg); color:var(--ink); outline:none;
+  transition:border-color 0.15s;
+  letter-spacing:0.05em;
+}
+.field input:focus { border-color:var(--accent); background:white; }
+.btn {
+  background:var(--accent); color:white; border:none;
+  font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:500;
+  padding:0.85rem 2rem; border-radius:0.6rem; cursor:pointer;
+  transition:opacity 0.15s, transform 0.1s;
+}
+.btn:hover { opacity:0.9; }
+.btn:active { transform:scale(0.98); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+.error-msg { color:var(--red); font-size:0.88rem; text-align:center; display:none; }
+.loading-msg { color:var(--ink-soft); font-size:0.88rem; text-align:center; display:none; }
+
+/* ── ALREADY SUBMITTED ── */
+#already { gap:1.5rem; text-align:center; }
+.already-card {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:1.2rem; padding:2.5rem;
+  max-width:420px; width:100%;
+  box-shadow:0 2px 20px rgba(0,0,0,0.06);
+}
+.already-card h2 { font-family:'Fraunces',serif; font-size:1.6rem; font-weight:400; margin-bottom:1rem; }
+.score-display { font-family:'Fraunces',serif; font-size:3rem; color:var(--accent); line-height:1; }
+.score-sub { font-size:0.85rem; color:var(--ink-soft); margin-top:0.3rem; }
+
+/* ── QUIZ ── */
+#quiz { justify-content:flex-start; padding-top:0; gap:0; }
+.quiz-header {
+  width:100%; background:var(--card);
+  border-bottom:1.5px solid var(--border);
+  padding:1rem 2rem;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:10;
+}
+.quiz-title { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:400; }
+.timer {
+  font-family:'Fraunces',serif; font-size:1.4rem;
+  color:var(--accent); font-weight:600;
+  transition:color 0.3s;
+}
+.timer.warn { color:var(--timer-warn); animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+.quiz-body { width:100%; max-width:760px; padding:2rem 1rem; display:flex; flex-direction:column; gap:2rem; }
+
+/* Section headers */
+.section-header {
+  border-left:4px solid var(--accent);
+  padding:0.5rem 0 0.5rem 1rem;
+}
+.section-unit { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:600; color:var(--accent); }
+.section-part { font-size:0.85rem; color:var(--ink-soft); margin-top:0.2rem; }
+.section-instruction {
+  background:var(--accent-light);
+  border-radius:0.6rem;
+  padding:0.7rem 1rem;
+  font-size:0.9rem;
+  color:var(--accent);
+  margin-top:0.5rem;
+}
+
+/* Question rows */
+.question-row {
+  display:grid;
+  grid-template-columns:2rem 1fr;
+  gap:0.5rem 0.75rem;
+  align-items:start;
+}
+.q-num { font-size:0.85rem; color:var(--ink-soft); font-weight:500; padding-top:0.7rem; }
+.q-content { display:flex; flex-direction:column; gap:0.4rem; }
+.q-sentence { font-size:1rem; line-height:1.6; color:var(--ink); }
+.q-input {
+  width:100%; padding:0.6rem 0.8rem;
+  border:1.5px solid var(--border); border-radius:0.5rem;
+  font-family:'DM Sans',sans-serif; font-size:1rem;
+  background:white; color:var(--ink); outline:none;
+  transition:border-color 0.15s;
+}
+.q-input:focus { border-color:var(--accent); }
+.q-input:disabled { background:var(--bg); color:var(--ink-soft); cursor:not-allowed; }
+.q-input-inline {
+  display:inline-block; width:160px;
+  padding:0.3rem 0.5rem;
+  border:none; border-bottom:2px solid var(--accent);
+  background:transparent; color:var(--ink);
+  font-family:'DM Sans',sans-serif; font-size:1rem;
+  outline:none; vertical-align:bottom;
+  transition:border-color 0.15s;
+}
+.q-input-inline:focus { border-bottom-color:var(--ink); }
+.q-input-inline::placeholder { color:var(--ink-soft); font-size:0.8rem; }
+
+/* Submit bar */
+.submit-bar {
+  width:100%; background:var(--card);
+  border-top:1.5px solid var(--border);
+  padding:1.2rem 2rem;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap;
+}
+.progress-info { font-size:0.88rem; color:var(--ink-soft); }
+.progress-info strong { color:var(--ink); }
+
+/* ── RESULTS ── */
+#results { justify-content:flex-start; padding-top:0; gap:0; }
+.results-header {
+  width:100%; background:var(--card);
+  border-bottom:1.5px solid var(--border);
+  padding:1.2rem 2rem;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+}
+.results-title { font-family:'Fraunces',serif; font-size:1.3rem; font-weight:400; }
+.score-pill {
+  background:var(--accent); color:white;
+  padding:0.4rem 1.2rem; border-radius:2rem;
+  font-family:'Fraunces',serif; font-size:1.1rem;
+}
+.results-body { width:100%; max-width:760px; padding:2rem 1rem; display:flex; flex-direction:column; gap:2rem; }
+
+/* Result question rows */
+.result-row {
+  display:grid;
+  grid-template-columns:2rem 1fr;
+  gap:0.4rem 0.75rem;
+  align-items:start;
+}
+.result-content { display:flex; flex-direction:column; gap:0.4rem; }
+.result-sentence { font-size:1rem; line-height:1.6; color:var(--ink); }
+
+.answer-box {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.5rem 0.8rem; border-radius:0.5rem;
+  font-size:0.9rem; gap:0.5rem; flex-wrap:wrap;
+}
+.answer-box.correct { background:var(--green-light); border:1.5px solid #a3d4b8; }
+.answer-box.half { background:var(--gold-light); border:1.5px solid #f0d080; }
+.answer-box.wrong { background:var(--red-light); border:1.5px solid #f0b0b0; }
+.answer-box.skipped { background:var(--bg); border:1.5px solid var(--border); }
+
+.answer-left { display:flex; flex-direction:column; gap:0.2rem; }
+.answer-given { font-weight:500; }
+.answer-given.correct { color:var(--green); }
+.answer-given.half { color:var(--gold); }
+.answer-given.wrong { color:var(--red); }
+.answer-given.skipped { color:var(--ink-soft); font-style:italic; }
+.answer-correct-show { font-size:0.8rem; color:var(--ink-soft); }
+.answer-correct-show span { color:var(--green); font-weight:500; }
+
+.score-tag { font-size:0.8rem; font-weight:500; white-space:nowrap; }
+.score-tag.correct { color:var(--green); }
+.score-tag.half { color:var(--gold); }
+.score-tag.wrong, .score-tag.skipped { color:var(--ink-soft); }
+
+.flag-btn {
+  background:none; border:1.5px solid var(--border);
+  border-radius:0.4rem; padding:0.25rem 0.6rem;
+  font-size:0.78rem; color:var(--ink-soft); cursor:pointer;
+  transition:all 0.15s; white-space:nowrap;
+}
+.flag-btn:hover { border-color:var(--red); color:var(--red); }
+.flag-btn.flagged { background:var(--red-light); border-color:var(--red); color:var(--red); }
+
+.unit-summary {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: 0.8rem; padding: 1rem 1.2rem;
+}
+.unit-summary-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.unit-summary-name { font-size: 0.9rem; color: var(--ink); flex: 1; }
+.unit-summary-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+.unit-score { font-size: 0.9rem; font-weight: 500; color: var(--ink-soft); }
+.pass-chip {
+  font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.65rem;
+  border-radius: 2rem; letter-spacing: 0.04em;
+}
+.pass-chip.pass { background: var(--green-light); color: var(--green); }
+.pass-chip.fail { background: var(--red-light); color: var(--red); }
+.overall-chip {
+  font-family: 'Fraunces', serif; font-size: 0.95rem;
+  padding: 0.3rem 0.9rem; border-radius: 2rem;
+}
+.overall-chip.pass { background: var(--green); color: white; }
+.overall-chip.fail { background: var(--red); color: white; }
+
+.timed-out-notice {
+  background:var(--red-light); border:1.5px solid #f0b0b0;
+  border-radius:0.6rem; padding:0.8rem 1rem;
+  color:var(--red); font-size:0.9rem; text-align:center;
+}
+
+.final-submit-bar {
+  width:100%; background:var(--card);
+  border-top:1.5px solid var(--border);
+  padding:1.2rem 2rem;
+  display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  position:sticky; bottom:0;
+}
+.flag-count { font-size:0.85rem; color:var(--ink-soft); }
+.flag-count strong { color:var(--red); }
+
+/* ── DONE ── */
+#done { gap:1.5rem; text-align:center; }
+.done-card {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:1.2rem; padding:2.5rem;
+  max-width:420px; width:100%;
+  box-shadow:0 2px 20px rgba(0,0,0,0.06);
+  display:flex; flex-direction:column; gap:0.75rem; align-items:center;
+}
+.done-card h2 { font-family:'Fraunces',serif; font-size:1.8rem; font-weight:400; }
+.done-score { font-family:'Fraunces',serif; font-size:3.5rem; color:var(--accent); line-height:1; }
+.done-meta { font-size:0.88rem; color:var(--ink-soft); }
+.done-notice { font-size:0.85rem; color:var(--ink-soft); max-width:340px; line-height:1.5; }
+
+/* ── FLAG MODAL ── */
+.flag-modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.4);
+  display:flex; align-items:center; justify-content:center;
+  z-index:100; padding:1.5rem;
+}
+.flag-modal {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:1.2rem; padding:1.5rem;
+  width:100%; max-width:420px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.15);
+  display:flex; flex-direction:column; gap:1rem;
+}
+.flag-modal h3 { font-family:'Fraunces',serif; font-size:1.2rem; font-weight:400; }
+.flag-modal p { font-size:0.85rem; color:var(--ink-soft); line-height:1.5; }
+.flag-modal textarea {
+  width:100%; padding:0.75rem;
+  border:1.5px solid var(--border); border-radius:0.6rem;
+  font-family:'DM Sans',sans-serif; font-size:0.95rem;
+  background:var(--bg); color:var(--ink); outline:none;
+  resize:vertical; min-height:90px;
+  transition:border-color 0.15s;
+}
+.flag-modal textarea:focus { border-color:var(--accent); }
+.flag-modal-btns { display:flex; gap:0.75rem; justify-content:flex-end; }
+.btn-sm {
+  padding:0.5rem 1.1rem; font-size:0.88rem; border-radius:0.5rem;
+  font-family:'DM Sans',sans-serif; font-weight:500; cursor:pointer; border:none;
+}
+.btn-sm.cancel { background:var(--border); color:var(--ink); }
+.btn-sm.confirm { background:var(--red); color:white; }
+.btn-sm.unflag { background:var(--border); color:var(--ink); }
+
+@media(max-width:600px) {
+  .quiz-header, .submit-bar, .results-header, .final-submit-bar { padding:0.8rem 1rem; }
+  .quiz-body, .results-body { padding:1rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="screen active" id="login">
+  <div class="logo">Grammar <span>Quiz</span></div>
+  <div class="login-card">
+    <div style="text-align:center">
+      <h2>Weekly Quiz</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin-top:0.3rem">Enter your student number to begin</p>
+    </div>
+    <div class="field">
+      <label>Student Number</label>
+      <input type="text" id="student-num-input" placeholder="e.g. 2111001" onkeydown="if(event.key==='Enter')loadQuiz()">
+    </div>
+    <button class="btn" onclick="loadQuiz()">Continue →</button>
+    <p class="error-msg" id="login-error"></p>
+    <p class="loading-msg" id="login-loading">Looking up your quiz…</p>
+  </div>
+  <p style="font-size:0.8rem;color:var(--ink-soft);margin-top:1rem;max-width:400px;text-align:center;line-height:1.5">
+    You have <strong>10 minutes</strong> once the quiz starts. The quiz can only be submitted once.
+  </p>
+</div>
+
+<!-- ALREADY SUBMITTED -->
+<div class="screen" id="already">
+  <div class="already-card">
+    <h2>Already Submitted</h2>
+    <p style="color:var(--ink-soft);font-size:0.9rem;margin-bottom:1.5rem">You have already completed this week's quiz.</p>
+    <div class="score-display" id="already-score">—</div>
+    <div class="score-sub" id="already-meta"></div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div class="screen" id="quiz">
+  <div class="quiz-header">
+    <div>
+      <div class="quiz-title" id="quiz-title">Weekly Grammar Quiz</div>
+      <div style="font-size:0.8rem;color:var(--ink-soft)" id="quiz-student"></div>
+    </div>
+    <div class="timer" id="timer">10:00</div>
+  </div>
+  <div class="quiz-body" id="quiz-body"></div>
+  <div class="submit-bar">
+    <div class="progress-info" id="progress-info"></div>
+    <button class="btn" onclick="submitQuiz(false)">Submit Quiz</button>
+  </div>
+</div>
+
+<!-- RESULTS (review before final submit) -->
+<div class="screen" id="results">
+  <div class="results-header">
+    <div>
+      <div class="results-title">Review Your Answers</div>
+      <div style="font-size:0.8rem;color:var(--ink-soft)" id="results-student"></div>
+    </div>
+    <div class="score-pill" id="results-score-pill">—</div>
+  </div>
+  <div class="results-body" id="results-body"></div>
+  <div class="final-submit-bar">
+    <div class="flag-count" id="flag-count"></div>
+    <button class="btn" id="final-submit-btn" onclick="finalSubmit()">Submit & Finish</button>
+  </div>
+</div>
+
+<!-- DONE -->
+<div class="screen" id="done">
+  <div class="done-card">
+    <div style="font-size:2rem">✓</div>
+    <h2>Quiz Submitted</h2>
+    <div id="done-split-scores" style="display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:0.2rem">New Unit(s)</div>
+        <div class="done-score" id="done-score-new" style="font-size:2.2rem;letter-spacing:0.05em">—</div>
+      </div>
+      <div style="color:var(--border);font-size:2rem;align-self:center">|</div>
+      <div style="text-align:center">
+        <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:0.2rem">Review Unit(s)</div>
+        <div class="done-score" id="done-score-rev" style="font-size:2.2rem;letter-spacing:0.05em">—</div>
+      </div>
+    </div>
+    <div class="done-meta" id="done-meta"></div>
+    <div id="done-breakdown" style="width:100%;display:flex;flex-direction:column;gap:0.1rem;margin-top:0.5rem"></div>
+    <p class="done-notice">Your results have been sent to your teacher. You may now close this tab.</p>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwb1peiDFj7EURjJtcnYub-P2Qv5AdnO2OV2-R5aG1v4-7AX391UxrQDKzZhVB8-KOc5A/exec';
+const QUIZ_DURATION = 10 * 60; // 10 minutes in seconds
+
+// ── MOCK DATA (for testing — remove before going live) ────────────────────────
+const MOCK_MODE = false;
+const MOCK_SUBMITTED = {}; // tracks submissions during this session
+
+const MOCK_STUDENTS = {
+  '2511003': {
+    found: true,
+    studentNumber: 2511003,
+    name: 'Gaito ABE',
+    week: 1,
+    questions: [
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 1, question: "That man _____________ very friendly.", answer: "is" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 2, question: "My hands _____________ cold. Can I close the window?", answer: "are" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 3, question: "Canada _____________ a very big country.", answer: "is" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 4, question: "Tokyo _____________ the capital of Japan.", answer: "is" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 5, question: "Those people _____________ from Korea.", answer: "are" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 6, question: "The weather _____________ nice today.", answer: "isn't / is not" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 7, question: "We _____________ students. We're teachers.", answer: "aren't / are not" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 8, question: "I _____________ tired. I feel great.", answer: "'m not / am not" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 9, question: "The shops _____________ open on Sunday.", answer: "aren't / are not" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 10, question: "She _____________ a doctor. She's a nurse.", answer: "isn't / is not" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 11, question: "(the stores / are / open today?) ________________________________________________________________________", answer: "Are the stores open today?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 12, question: "(from / where / you / are?) ________________________________________________________________________", answer: "Where are you from?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 13, question: "(is / home / your mother?) ________________________________________________________________________", answer: "Is your mother home?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 14, question: "(expensive / this hotel / is?) ________________________________________________________________________", answer: "Is this hotel expensive?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 15, question: "(at school / are / your children?) ________________________________________________________________________", answer: "Are your children at school?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 16, question: "Is London in France? (No) _____________________________", answer: "No, it isn't." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 17, question: "Is your car new? (Yes) _____________________________", answer: "Yes, it is." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 18, question: "Is your sister a doctor? (Yes) _____________________________", answer: "Yes, she is." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 19, question: "Are you interested in sports? (Yes) _____________________________", answer: "Yes, I am." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 20, question: "Are your parents from Tokyo? (No) _____________________________", answer: "No, they aren't." }
+    ]
+  },
+  '2511004': {
+    found: true,
+    studentNumber: 2511004,
+    name: 'Fuchi ABE',
+    week: 1,
+    questions: [
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 1, question: "(the stores / are / open today?) ________________________________________________________________________", answer: "Are the stores open today?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 2, question: "(from / where / you / are?) ________________________________________________________________________", answer: "Where are you from?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 3, question: "(is / home / your mother?) ________________________________________________________________________", answer: "Is your mother home?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 4, question: "(expensive / this hotel / is?) ________________________________________________________________________", answer: "Is this hotel expensive?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 5, question: "(at school / are / your children?) ________________________________________________________________________", answer: "Are your children at school?" },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 6, question: "Is London in France? (No) _____________________________", answer: "No, it isn't." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 7, question: "Is your car new? (Yes) _____________________________", answer: "Yes, it is." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 8, question: "Is your sister a doctor? (Yes) _____________________________", answer: "Yes, she is." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 9, question: "Are you interested in sports? (Yes) _____________________________", answer: "Yes, I am." },
+      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 10, question: "Are your parents from Tokyo? (No) _____________________________", answer: "No, they aren't." },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 11, question: "My sister _____________ a nurse.", answer: "is" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 12, question: "We _____________ hungry. Let's eat something.", answer: "are" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 13, question: "I _____________ a student at this university.", answer: "am" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 14, question: "These books _____________ very interesting.", answer: "are" },
+      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 15, question: "Tokyo _____________ a very busy city.", answer: "is" },
+      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 16, question: "She _____________ to music right now. (listen)", answer: "is listening" },
+      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 17, question: "They _____________ football in the park. (play)", answer: "are playing" },
+      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 18, question: "I _____________ a letter to my friend. (write)", answer: "am writing" },
+      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 19, question: "He _____________ dinner in the kitchen. (cook)", answer: "is cooking" },
+      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 20, question: "We _____________ for the bus. (wait)", answer: "are waiting" }
+    ]
+  }
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let studentData = null;   // { studentNumber, name, week, questions }
+let answers = [];         // student's typed answers, indexed by question index
+let timerInterval = null;
+let secondsLeft = QUIZ_DURATION;
+let timedOut = false;
+let gradedQuestions = []; // after grading
+
+// ── SCREENS ───────────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+async function loadQuiz() {
+  const num = document.getElementById('student-num-input').value.trim();
+  if (!num) return showError('login-error', 'Please enter your student number.');
+
+  showError('login-error', '');
+  document.getElementById('login-loading').style.display = 'block';
+  document.querySelector('#login .btn').disabled = true;
+
+  try {
+    let data;
+    if (MOCK_MODE) {
+      // Simulate network delay
+      await new Promise(r => setTimeout(r, 600));
+      if (MOCK_SUBMITTED[num]) {
+        const sub = MOCK_SUBMITTED[num];
+        data = { alreadySubmitted: true, name: sub.name, week: sub.week, score: sub.score, total: sub.total, submittedAt: new Date().toISOString() };
+      } else if (MOCK_STUDENTS[num]) {
+        data = MOCK_STUDENTS[num];
+      } else {
+        data = { error: 'Student number not found. Please check your number and try again.' };
+      }
+    } else {
+      const res = await fetch(`${SCRIPT_URL}?student=${encodeURIComponent(num)}`);
+      data = await res.json();
+    }
+
+    document.getElementById('login-loading').style.display = 'none';
+    document.querySelector('#login .btn').disabled = false;
+
+    if (data.error) return showError('login-error', data.error);
+
+    if (data.alreadySubmitted) {
+      document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
+      document.getElementById('already-meta').textContent =
+        `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
+      return show('already');
+    }
+
+    if (data.found) {
+      studentData = data;
+      studentData.noReview = data.noReview === true;
+      answers = new Array(data.questions.length).fill('');
+      startQuiz();
+    }
+  } catch(err) {
+    document.getElementById('login-loading').style.display = 'none';
+    document.querySelector('#login .btn').disabled = false;
+    showError('login-error', 'Connection error. Please try again.');
+  }
+}
+
+// ── QUIZ ──────────────────────────────────────────────────────────────────────
+function startQuiz() {
+  document.getElementById('quiz-title').textContent = `Week ${studentData.week} — Grammar Quiz`;
+  document.getElementById('quiz-student').textContent = studentData.name;
+  renderQuizBody();
+  startTimer();
+  show('quiz');
+}
+
+function renderQuizBody() {
+  const body = document.getElementById('quiz-body');
+  body.innerHTML = '';
+  const qs = studentData.questions;
+  let lastUnit = null, lastPart = null;
+
+  // Group consecutive questions sharing the same sentence (blankIndex 0 and 1)
+  let i = 0;
+  while (i < qs.length) {
+    const q = qs[i];
+
+    // Section header if unit or part changes
+    if (q.unit !== lastUnit || q.part !== lastPart) {
+      const sec = document.createElement('div');
+      const isNewUnit = q.unit !== lastUnit;
+      sec.innerHTML = '<div class="section-header">' +
+        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
+        '<div class="section-part">' + q.part + '</div>' +
+        '<div class="section-instruction">' + q.instruction + '</div>' +
+        '</div>';
+      body.appendChild(sec);
+      lastUnit = q.unit;
+      lastPart = q.part;
+    }
+
+    // Check if this is first of a double-blank pair
+    const isFirstOfPair = q.blankIndex === 0 && i + 1 < qs.length && qs[i+1].blankIndex === 1 && qs[i+1].question === q.question;
+
+    if (isFirstOfPair) {
+      const q2 = qs[i + 1];
+      // Split question at blanks — show sentence once, two input boxes
+      const row = document.createElement('div');
+      row.className = 'question-row';
+      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+        '<div class="q-content">' +
+        '<div class="q-sentence">' + formatQuestionDouble(q.question, i, i+1) + '</div>' +
+        '</div>';
+      body.appendChild(row);
+      i += 2;
+    } else {
+      // Normal single-blank question
+      const row = document.createElement('div');
+      row.className = 'question-row';
+      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+        '<div class="q-content">' +
+        '<div class="q-sentence">' + formatQuestion(q.question) + '</div>' +
+        '<input class="q-input" type="text" id="input-' + i + '"' +
+        ' placeholder="Your answer…"' +
+        ' oninput="saveAnswer(' + i + ', this.value)"' +
+        ' autocomplete="off" autocorrect="off" spellcheck="false">' +
+        '</div>';
+      body.appendChild(row);
+      i++;
+    }
+  }
+
+  updateProgress();
+}
+
+function formatQuestion(q) {
+  return q.replace(/_+/g, '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>');
+}
+
+// For double-blank: inline input boxes replace the blanks in the sentence
+function formatQuestionDouble(q, idx1, idx2) {
+  let blankNum = 0;
+  return q.replace(/_+/g, function() {
+    const idx = blankNum === 0 ? idx1 : idx2;
+    const label = blankNum === 0 ? 'First blank' : 'Second blank';
+    blankNum++;
+    return '<input class="q-input-inline" type="text" id="input-' + idx + '"' +
+      ' placeholder="' + label + '"' +
+      ' oninput="saveAnswer(' + idx + ', this.value)"' +
+      ' autocomplete="off" autocorrect="off" spellcheck="false">';
+  });
+}
+
+function saveAnswer(i, val) {
+  answers[i] = val;
+  updateProgress();
+}
+
+function updateProgress() {
+  const answered = answers.filter(a => a.trim() !== '').length;
+  document.getElementById('progress-info').innerHTML =
+    `<strong>${answered}</strong> of <strong>${studentData.questions.length}</strong> answered`;
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function startTimer() {
+  secondsLeft = QUIZ_DURATION;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    updateTimerDisplay();
+    if (secondsLeft <= 0) {
+      clearInterval(timerInterval);
+      timedOut = true;
+      submitQuiz(true);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  const el = document.getElementById('timer');
+  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  el.classList.toggle('warn', secondsLeft <= 60);
+}
+
+// ── GRADING ───────────────────────────────────────────────────────────────────
+function gradeAnswerHalf(studentAnswer, correctAnswer) {
+  // For one blank of a double-blank pair — exact match = 0.5pt, anything else = 0pt
+  const raw = studentAnswer.trim();
+  if (raw === '') return { result: 'skipped', score: 0 };
+  const accepted = correctAnswer.split(' / ').map(a => a.trim());
+  if (accepted.some(a => a === raw)) return { result: 'correct', score: 0.5 };
+  return { result: 'wrong', score: 0 };
+}
+
+function gradeAnswer(studentAnswer, correctAnswer) {
+  const raw = studentAnswer.trim();
+
+  // Unanswered
+  if (raw === '') return { result: 'skipped', score: 0 };
+
+  // Multiple accepted answers split by " / "
+  const accepted = correctAnswer.split(' / ').map(a => a.trim());
+
+  // Exact match
+  if (accepted.some(a => a === raw)) return { result: 'correct', score: 1 };
+
+  // Case-insensitive match (capitalization error)
+  if (accepted.some(a => a.toLowerCase() === raw.toLowerCase())) {
+    // Check punctuation too — if only difference is case, half point
+    return { result: 'half', score: 0.5 };
+  }
+
+  // Punctuation-only difference: strip punctuation and compare
+  const strip = s => s.replace(/[''`".,!?;:]/g, '').toLowerCase().trim();
+  if (accepted.some(a => strip(a) === strip(raw))) {
+    return { result: 'half', score: 0.5 };
+  }
+
+  // Case + punctuation combined error (still half point — they know the word)
+  if (accepted.some(a => strip(a).toLowerCase() === strip(raw).toLowerCase())) {
+    return { result: 'half', score: 0.5 };
+  }
+
+  // Wrong spelling = 0
+  return { result: 'wrong', score: 0 };
+}
+
+// ── SUBMIT QUIZ (go to review) ────────────────────────────────────────────────
+function submitQuiz(fromTimer) {
+  clearInterval(timerInterval);
+
+  // Collect final answers from inputs
+  studentData.questions.forEach((q, i) => {
+    const input = document.getElementById(`input-${i}`);
+    if (input) answers[i] = input.value.trim();
+  });
+
+  // Grade all questions — handle double-blank pairs with combined scoring
+  const rawGraded = studentData.questions.map((q, i) => {
+    const isInPair = q.blankIndex === 0 || q.blankIndex === 1;
+    const { result, score } = isInPair
+      ? gradeAnswerHalf(answers[i], q.answer)
+      : gradeAnswer(answers[i], q.answer);
+    return {
+      ...q,
+      studentAnswer: answers[i],
+      correctAnswer: q.answer,
+      result,
+      score,
+      flagged: false,
+      flagReason: ''
+    };
+  });
+
+  // For double-blank pairs: combine scores (1+1=1pt, 1+0=0.5pt, 0+0=0pt)
+  gradedQuestions = [];
+  let gi = 0;
+  while (gi < rawGraded.length) {
+    const gq = rawGraded[gi];
+    const isFirstOfPair = gq.blankIndex === 0 &&
+      gi + 1 < rawGraded.length &&
+      rawGraded[gi+1].blankIndex === 1 &&
+      rawGraded[gi+1].question === gq.question;
+
+    if (isFirstOfPair) {
+      const gq2 = rawGraded[gi + 1];
+      // Combined score: both correct=1, one correct=0.5, none=0
+      const combinedScore = gq.score + gq2.score; // each blank already 0 or 0.5, sum = 0, 0.5, or 1
+      const combinedResult = combinedScore === 1 ? 'correct' : combinedScore > 0 ? 'half' : (gq.result === 'skipped' && gq2.result === 'skipped' ? 'skipped' : 'wrong');
+      // Keep both as separate entries but with combined score reflected
+      gradedQuestions.push({ ...gq,  score: gq.score,  result: gq.result,  flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
+      gradedQuestions.push({ ...gq2, score: gq2.score, result: gq2.result, flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
+      gi += 2;
+    } else {
+      gradedQuestions.push(gq);
+      gi++;
+    }
+  }
+
+  renderResults(fromTimer);
+}
+
+// ── UNIT PASS/FAIL LOGIC ─────────────────────────────────────────────────────
+function calcUnitResults(questions) {
+  // Group questions by unit
+  const units = {};
+  questions.forEach(q => {
+    if (!units[q.unit]) units[q.unit] = { name: q.unit, questions: [] };
+    units[q.unit].questions.push(q);
+  });
+
+  const unitList = Object.values(units).map(u => {
+    // Count pairs as 1 question: skip blankIndex=1 entries, use pairScore from blankIndex=0
+    let total = 0;
+    let score = 0;
+    u.questions.forEach(uq => {
+      if (uq.blankIndex === 1) return; // skip second blank — already counted via blankIndex=0
+      total += 1;
+      if (uq.blankIndex === 0 && uq.pairScore !== undefined) {
+        score += uq.pairScore; // use combined pair score
+      } else {
+        score += uq.score;
+      }
+    });
+    const isNew = total >= 10; // 10Q = new unit, 5Q = review unit
+    const passmark = isNew ? 6 : 3;
+    const passed = score >= passmark;
+    return { name: u.name, score, total, passmark, passed, isNew };
+  });
+
+  const newUnits    = unitList.filter(u => u.isNew);
+  const reviewUnits = unitList.filter(u => !u.isNew);
+  const allReview   = newUnits.length === 0; // 3x5Q = no new unit studied
+
+  // No review flag — week 1 or late joiner with only 1 unit
+  const noReview = studentData.noReview === true || reviewUnits.length === 0;
+
+  // Bonus: 2 new units both passed
+  const bonusAttempt = newUnits.length === 2;
+  const bonusEarned  = bonusAttempt && newUnits.every(u => u.passed);
+
+  // Points
+  const newUnitPassed    = !allReview && newUnits.every(u => u.passed);
+  const reviewUnitPassed = noReview ? null : reviewUnits.every(u => u.passed); // null = N/A
+  const newPoints        = newUnitPassed ? 20 : 0;
+  const reviewPoints     = (noReview || reviewUnitPassed === null) ? null : (reviewUnitPassed ? 20 : 0);
+  const totalPoints      = newPoints + (reviewPoints || 0);
+
+  return {
+    units: unitList, newUnits, reviewUnits,
+    allReview, noReview, bonusAttempt, bonusEarned,
+    newUnitPassed, reviewUnitPassed,
+    newPoints, reviewPoints, totalPoints
+  };
+}
+
+// ── RENDER RESULTS ────────────────────────────────────────────────────────────
+function renderResults(fromTimer) {
+  let totalScore = 0;
+  let totalPossible = 0;
+  let ri = 0;
+  while (ri < gradedQuestions.length) {
+    const rq = gradedQuestions[ri];
+    if (rq.blankIndex === 0 && ri + 1 < gradedQuestions.length && gradedQuestions[ri+1].blankIndex === 1) {
+      totalScore += rq.pairScore !== undefined ? rq.pairScore : (rq.score + gradedQuestions[ri+1].score) / 2;
+      totalPossible += 1;
+      ri += 2;
+    } else {
+      totalScore += rq.score;
+      totalPossible += 1;
+      ri++;
+    }
+  }
+  const R = calcUnitResults(gradedQuestions);
+
+  document.getElementById('results-student').textContent =
+    studentData.name + ' · Week ' + studentData.week;
+  const overallPassR = !R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed;
+  document.getElementById('results-score-pill').innerHTML =
+    (overallPassR ? 'PASS' : 'FAIL') + ' &nbsp;·&nbsp; ' + totalScore + ' / ' + totalPossible;
+  document.getElementById('results-score-pill').style.background = overallPassR ? 'var(--green)' : 'var(--red)';
+
+  const body = document.getElementById('results-body');
+  body.innerHTML = '';
+
+  // Timed out notice
+  if (fromTimer) {
+    const notice = document.createElement('div');
+    notice.className = 'timed-out-notice';
+    notice.textContent = 'Time is up! Unanswered questions have been marked as 0.';
+    body.appendChild(notice);
+  }
+
+  // Bonus attempt banner
+  if (R.bonusAttempt) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:var(--green-light);border:1.5px solid #a3d4b8;border-radius:0.8rem;padding:0.75rem 1.2rem;color:var(--green);font-weight:600;font-size:0.9rem;letter-spacing:0.04em;text-align:center';
+    banner.textContent = '★ STUDENT SUBMITTED 2 NEW UNITS — BONUS POINT ATTEMPT';
+    body.appendChild(banner);
+  }
+
+  // No new unit notice
+  if (R.allReview) {
+    const notice = document.createElement('div');
+    notice.style.cssText = 'background:var(--red-light);border:1.5px solid #f0b0b0;border-radius:0.8rem;padding:0.75rem 1.2rem;color:var(--red);font-size:0.88rem;text-align:center';
+    notice.textContent = 'No new unit submitted this week. New unit portion: 0 points.';
+    body.appendChild(notice);
+  }
+
+  // Unit summary card
+  const summary = document.createElement('div');
+  summary.className = 'unit-summary';
+
+  function makeHeaderRow(label, passed, borderTop) {
+    const color = passed ? 'var(--green)' : 'var(--red)';
+    const result = passed ? 'PASS' : 'FAIL';
+    const topStyle = borderTop ? 'border-top:1px solid var(--border);padding-top:0.6rem;' : '';
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:0.75rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:0.3rem;' + topStyle + 'border-bottom:1px solid var(--border)';
+    d.innerHTML = label + ' — <span style="color:' + color + '">' + result + '</span>';
+    return d;
+  }
+
+  function makeUnitRow(u) {
+    const d = document.createElement('div');
+    d.className = 'unit-summary-row';
+    d.innerHTML = '<div class="unit-summary-name">' + u.name + '</div>' +
+      '<div class="unit-summary-right">' +
+      '<span class="unit-score">' + u.score + ' / ' + u.total + ' (pass: ' + u.passmark + ')</span>' +
+      '<span class="pass-chip ' + (u.passed ? 'pass' : 'fail') + '">' + (u.passed ? 'Pass' : 'Fail') + '</span>' +
+      '</div>';
+    return d;
+  }
+
+  // New units section
+  if (!R.allReview) {
+    const nuLabel = 'New Unit' + (R.newUnits.length > 1 ? 's' : '');
+    summary.appendChild(makeHeaderRow(nuLabel, R.newUnitPassed, false));
+    R.newUnits.forEach(u => summary.appendChild(makeUnitRow(u)));
+    // Bonus result
+    if (R.bonusAttempt) {
+      const bonusDiv = document.createElement('div');
+      bonusDiv.style.cssText = 'font-size:0.85rem;font-weight:600;padding-top:0.3rem;color:' + (R.bonusEarned ? 'var(--green)' : 'var(--red)');
+      bonusDiv.textContent = R.bonusEarned ? '★ +1 BONUS POINT' : '✗ NO BONUS POINT';
+      summary.appendChild(bonusDiv);
+    }
+  }
+
+  // Review units section
+  if (R.noReview && R.reviewUnits.length === 0) {
+    const noRevDiv = document.createElement('div');
+    noRevDiv.style.cssText = 'font-size:0.85rem;color:var(--ink-soft);padding:0.5rem 0;border-top:1px solid var(--border);font-style:italic';
+    noRevDiv.textContent = 'No review units this week.';
+    summary.appendChild(noRevDiv);
+  } else {
+    const rvLabel = 'Review Unit' + (R.reviewUnits.length > 1 ? 's' : '');
+    const rvPassed = R.reviewUnitPassed === null ? true : R.reviewUnitPassed;
+    summary.appendChild(makeHeaderRow(rvLabel, rvPassed, !R.allReview));
+    R.reviewUnits.forEach(u => summary.appendChild(makeUnitRow(u)));
+  }
+
+  // Total points row
+  const finalPass = !R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed;
+  const totalDiv = document.createElement('div');
+  totalDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid var(--border);padding-top:0.6rem;margin-top:0.2rem';
+  totalDiv.innerHTML = '<span style="font-weight:600;font-size:0.9rem">Overall Result</span>' +
+    '<span style="font-family:Fraunces,serif;font-size:1.4rem;font-weight:700;color:' + (finalPass ? 'var(--green)' : 'var(--red)') + '">' + (finalPass ? 'PASS' : 'FAIL') + '</span>';
+  summary.appendChild(totalDiv);
+
+  body.appendChild(summary);
+
+  // Question rows — handle double-blank pairs
+  let lastUnit = null, lastPart = null;
+  let j = 0;
+  while (j < gradedQuestions.length) {
+    const q = gradedQuestions[j];
+
+    if (q.unit !== lastUnit || q.part !== lastPart) {
+      const sec = document.createElement('div');
+      const isNewUnit = q.unit !== lastUnit;
+      sec.innerHTML = '<div class="section-header">' +
+        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
+        '<div class="section-part">' + q.part + '</div>' +
+        '<div class="section-instruction">' + q.instruction + '</div>' +
+        '</div>';
+      body.appendChild(sec);
+      lastUnit = q.unit;
+      lastPart = q.part;
+    }
+
+    const scoreLabels = { correct: '+1 pt', half: '+0.5 pt', wrong: '0 pt', skipped: '0 pt' };
+
+    // Check if this is first of a double-blank pair
+    const isFirstOfPair = q.blankIndex === 0 &&
+      j + 1 < gradedQuestions.length &&
+      gradedQuestions[j+1].blankIndex === 1 &&
+      gradedQuestions[j+1].question === q.question;
+
+    if (isFirstOfPair) {
+      const q2 = gradedQuestions[j + 1];
+
+      // Show the sentence once with both answers inline
+      function makeBlankResult(gq, idx) {
+        const canFlag = gq.result === 'wrong';
+        const answerGiven = gq.result === 'skipped' ? 'No answer given' : (gq.studentAnswer || '(empty)');
+        const correctShow = (gq.result !== 'correct' && gq.result !== 'skipped')
+          ? '<div class="answer-correct-show">Correct: <span>' + gq.correctAnswer + '</span></div>' : '';
+        const flagBtn = canFlag
+          ? '<button class="flag-btn" id="flag-btn-' + idx + '" onclick="toggleFlag(' + idx + ')">🚩 Flag</button>' : '';
+        const scoreDisplay = gq.score > 0 ? '+' + gq.score + ' pt' : '0 pt';
+        return '<div class="answer-box ' + gq.result + '" id="answer-box-' + idx + '" style="margin-bottom:0.4rem">' +
+          '<div class="answer-left">' +
+          '<div style="font-size:0.75rem;color:var(--ink-soft);margin-bottom:0.1rem">Blank ' + (gq.blankIndex + 1) + '</div>' +
+          '<div class="answer-given ' + gq.result + '">' + answerGiven + '</div>' +
+          correctShow +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">' +
+          '<span class="score-tag ' + gq.result + '">' + scoreDisplay + '</span>' +
+          flagBtn +
+          '</div></div>';
+      }
+
+      const row = document.createElement('div');
+      row.className = 'result-row';
+      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+        '<div class="result-content">' +
+        '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
+        makeBlankResult(q, j) +
+        makeBlankResult(q2, j + 1) +
+        '</div>';
+      body.appendChild(row);
+      j += 2;
+    } else {
+      // Normal single-blank question
+      const canFlag = q.result === 'wrong' || q.result === 'half';
+      const answerGiven = q.result === 'skipped' ? 'No answer given' : (q.studentAnswer || '(empty)');
+      const correctShow = (q.result !== 'correct' && q.result !== 'skipped')
+        ? '<div class="answer-correct-show">Correct: <span>' + q.correctAnswer + '</span></div>' : '';
+      const halfNote = q.result === 'half'
+        ? '<div class="answer-correct-show" style="color:var(--gold)">Capitalization or punctuation error</div>' : '';
+      const flagBtn = canFlag
+        ? '<button class="flag-btn" id="flag-btn-' + j + '" onclick="toggleFlag(' + j + ')">🚩 Flag</button>' : '';
+
+      const row = document.createElement('div');
+      row.className = 'result-row';
+      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+        '<div class="result-content">' +
+        '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
+        '<div class="answer-box ' + q.result + '" id="answer-box-' + j + '">' +
+        '<div class="answer-left">' +
+        '<div class="answer-given ' + q.result + '">' + answerGiven + '</div>' +
+        correctShow + halfNote +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">' +
+        '<span class="score-tag ' + q.result + '">' + scoreLabels[q.result] + '</span>' +
+        flagBtn +
+        '</div></div></div>';
+      body.appendChild(row);
+      j++;
+    }
+  }
+
+  updateFlagCount();
+  show('results');
+}
+
+let pendingFlagIdx = null;
+
+function toggleFlag(i) {
+  if (gradedQuestions[i].flagged) {
+    // Already flagged — unflag directly
+    gradedQuestions[i].flagged = false;
+    gradedQuestions[i].flagReason = '';
+    const btn = document.getElementById('flag-btn-' + i);
+    btn.classList.remove('flagged');
+    btn.textContent = '🚩 Flag';
+    updateFlagCount();
+  } else {
+    // Open modal to get reason
+    pendingFlagIdx = i;
+    document.getElementById('flag-reason').value = '';
+    document.getElementById('flag-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('flag-reason').focus(), 50);
+  }
+}
+
+function confirmFlag() {
+  if (pendingFlagIdx === null) return;
+  const reason = document.getElementById('flag-reason').value.trim();
+  gradedQuestions[pendingFlagIdx].flagged = true;
+  gradedQuestions[pendingFlagIdx].flagReason = reason;
+  const btn = document.getElementById('flag-btn-' + pendingFlagIdx);
+  btn.classList.add('flagged');
+  btn.textContent = '🚩 Flagged';
+  updateFlagCount();
+  closeFlagModal();
+}
+
+function closeFlagModal(event) {
+  if (event && event.target !== document.getElementById('flag-modal')) return;
+  document.getElementById('flag-modal').style.display = 'none';
+  pendingFlagIdx = null;
+}
+
+function updateFlagCount() {
+  const count = gradedQuestions.filter(q => q.flagged).length;
+  document.getElementById('flag-count').innerHTML = count > 0
+    ? '<strong>' + count + '</strong> question' + (count > 1 ? 's' : '') + ' flagged for review'
+    : 'Flag any answers you want to dispute';
+}
+
+// ── FINAL SUBMIT ──────────────────────────────────────────────────────────────
+async function finalSubmit() {
+  document.getElementById('final-submit-btn').disabled = true;
+  document.getElementById('final-submit-btn').textContent = 'Submitting…';
+
+  // Calculate total score counting pairs as 1 question
+  let totalScore = 0;
+  let totalPossible = 0;
+  let pi = 0;
+  while (pi < gradedQuestions.length) {
+    const pq = gradedQuestions[pi];
+    if (pq.blankIndex === 0 && pi + 1 < gradedQuestions.length && gradedQuestions[pi+1].blankIndex === 1) {
+      totalScore += pq.pairScore !== undefined ? pq.pairScore : (pq.score + gradedQuestions[pi+1].score) / 2;
+      totalPossible += 1;
+      pi += 2;
+    } else {
+      totalScore += pq.score;
+      totalPossible += 1;
+      pi++;
+    }
+  }
+
+  const R3 = calcUnitResults(gradedQuestions);
+  const payload = {
+    studentNumber: studentData.studentNumber,
+    name: studentData.name,
+    week: studentData.week,
+    score: totalScore,
+    total: totalPossible,
+    quizPoints: R3.totalPoints,
+    newUnitPassed: R3.newUnitPassed,
+    reviewUnitPassed: R3.reviewUnitPassed,
+    bonusAttempt: R3.bonusAttempt,
+    bonusEarned: R3.bonusEarned,
+    allReview: R3.allReview,
+    unitResults: R3.units,
+    timedOut: timedOut,
+    questions: gradedQuestions
+  };
+
+  try {
+    if (MOCK_MODE) {
+      await new Promise(r => setTimeout(r, 600));
+      // Record as submitted so retake test works
+      MOCK_SUBMITTED[String(studentData.studentNumber)] = {
+        name: studentData.name, week: studentData.week,
+        score: R3.totalPoints, total: 40
+      };
+      console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
+    } else {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+  } catch(err) {
+    console.warn('Submission error:', err);
+  }
+
+  // Show done screen
+  const R2 = calcUnitResults(gradedQuestions);
+  const newPassFail  = R2.allReview ? 'N/A' : (R2.newUnitPassed ? 'PASS' : 'FAIL');
+  const revPassFail  = R2.reviewUnitPassed ? 'PASS' : 'FAIL';
+  const overallPass2 = R2.newUnitPassed && R2.reviewUnitPassed;
+
+  const newEl = document.getElementById('done-score-new');
+  const revEl = document.getElementById('done-score-rev');
+  if (R2.allReview) {
+    newEl.textContent = 'N/A';
+    newEl.style.color = 'var(--ink-soft)';
+  } else {
+    newEl.textContent = R2.newUnitPassed ? 'PASS' : 'FAIL';
+    newEl.style.color = R2.newUnitPassed ? 'var(--green)' : 'var(--red)';
+  }
+  if (R2.noReview && R2.reviewUnits.length === 0) {
+    revEl.textContent = 'N/A';
+    revEl.style.color = 'var(--ink-soft)';
+  } else {
+    revEl.textContent = R2.reviewUnitPassed ? 'PASS' : 'FAIL';
+    revEl.style.color = R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)';
+  }
+  document.getElementById('done-meta').textContent = 'Week ' + studentData.week + '  ·  Raw score: ' + totalScore + ' / ' + totalPossible;
+
+  const doneBreakdown = document.getElementById('done-breakdown');
+  let breakHTML = '';
+
+  if (R2.bonusAttempt) {
+    breakHTML += '<div style="font-size:0.82rem;font-weight:600;color:' + (R2.bonusEarned ? 'var(--green)' : 'var(--red)') + ';padding:0.3rem 0;text-align:center">' +
+      (R2.bonusEarned ? '★ +1 BONUS POINT' : '✗ NO BONUS POINT') + '</div>';
+  }
+
+  if (R2.allReview) {
+    breakHTML += '<div style="font-size:0.8rem;color:var(--red);padding:0.2rem 0;text-align:center">No new unit this week — new unit portion N/A</div>';
+  }
+
+  // New units row
+  if (!R2.allReview) {
+    breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+      '<span style="color:var(--ink-soft)">New Unit' + (R2.newUnits.length > 1 ? 's' : '') + '</span>' +
+      '<span style="font-weight:700;color:' + (R2.newUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + newPassFail + '</span>' +
+      '</div>';
+  }
+
+  // Review units row
+  if (R2.noReview && R2.reviewUnits.length === 0) {
+    breakHTML += '<div style="font-size:0.82rem;color:var(--ink-soft);padding:0.3rem 0;font-style:italic">No review units this week.</div>';
+  } else {
+    breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+      '<span style="color:var(--ink-soft)">Review Unit' + (R2.reviewUnits.length > 1 ? 's' : '') + '</span>' +
+      '<span style="font-weight:700;color:' + (R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + revPassFail + '</span>' +
+      '</div>';
+  }
+
+  // Per-unit detail
+  breakHTML += R2.units.map(u =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:0.25rem 0;padding-left:0.8rem">' +
+    '<span style="color:var(--ink-soft)">' + u.name + '</span>' +
+    '<span style="color:var(--ink-soft)">' + u.score + '/' + u.total + '</span>' +
+    '</div>'
+  ).join('');
+
+  doneBreakdown.innerHTML = breakHTML;
+  show('done');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+</script>
+<!-- FLAG MODAL -->
+<div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
+  <div class="flag-modal">
+    <h3>🚩 Flag this question</h3>
+    <p>理由を書いてください。（日本語でもいい）<br><span style="color:var(--ink-soft);font-size:0.8rem">Please explain why you think this answer should be reconsidered.</span></p>
+    <textarea id="flag-reason" placeholder="例：この答えも正しいと思います / I think my answer is also correct because..."></textarea>
+    <div class="flag-modal-btns">
+      <button class="btn-sm cancel" onclick="closeFlagModal()">Cancel</button>
+      <button class="btn-sm confirm" onclick="confirmFlag()">Submit Flag</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
