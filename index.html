@@ -826,7 +826,7 @@ function renderResults(fromTimer) {
 
   document.getElementById('results-student').textContent =
     studentData.name + ' · Week ' + studentData.week;
-  const overallPassR = !R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed;
+  const overallPassR = R.noReview ? R.newUnitPassed : (!R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed);
   document.getElementById('results-score-pill').innerHTML =
     (overallPassR ? 'PASS' : 'FAIL') + ' &nbsp;·&nbsp; ' + totalScore + ' / ' + totalPossible;
   document.getElementById('results-score-pill').style.background = overallPassR ? 'var(--green)' : 'var(--red)';
@@ -911,7 +911,7 @@ function renderResults(fromTimer) {
   }
 
   // Total points row
-  const finalPass = !R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed;
+  const finalPass = R.noReview ? R.newUnitPassed : (!R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed);
   const totalDiv = document.createElement('div');
   totalDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;border-top:1.5px solid var(--border);padding-top:0.6rem;margin-top:0.2rem';
   totalDiv.innerHTML = '<span style="font-weight:600;font-size:0.9rem">Overall Result</span>' +
@@ -1125,7 +1125,7 @@ async function finalSubmit() {
   const R2 = calcUnitResults(gradedQuestions);
   const newPassFail  = R2.allReview ? 'N/A' : (R2.newUnitPassed ? 'PASS' : 'FAIL');
   const revPassFail  = R2.reviewUnitPassed ? 'PASS' : 'FAIL';
-  const overallPass2 = R2.newUnitPassed && R2.reviewUnitPassed;
+  const overallPass2 = R2.noReview ? R2.newUnitPassed : (R2.newUnitPassed && R2.reviewUnitPassed);
 
   const newEl = document.getElementById('done-score-new');
   const revEl = document.getElementById('done-score-rev');
