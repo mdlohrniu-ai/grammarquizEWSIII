@@ -105,7 +105,19 @@ body {
   border-left:4px solid var(--accent);
   padding:0.5rem 0 0.5rem 1rem;
 }
+.section-header.review {
+  border-left-color: var(--gold);
+}
+.section-label {
+  font-size:0.7rem; font-weight:700; letter-spacing:0.1em;
+  text-transform:uppercase; margin-bottom:0.3rem;
+  padding:0.15rem 0.5rem; border-radius:2rem;
+  display:inline-block;
+}
+.section-label.new-unit { background:var(--accent-light); color:var(--accent); }
+.section-label.review-unit { background:var(--gold-light); color:var(--gold); }
 .section-unit { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:600; color:var(--accent); }
+.section-unit.review { color:var(--gold); }
 .section-part { font-size:0.85rem; color:var(--ink-soft); margin-top:0.2rem; }
 .section-instruction {
   background:var(--accent-light);
@@ -114,6 +126,10 @@ body {
   font-size:0.9rem;
   color:var(--accent);
   margin-top:0.5rem;
+}
+.section-instruction.review {
+  background:var(--gold-light);
+  color:var(--gold);
 }
 
 /* Question rows */
@@ -315,7 +331,7 @@ body {
 
 <!-- LOGIN -->
 <div class="screen active" id="login">
-  <div class="logo">Grammar <span>Quiz</span></div>
+  <div class="logo">Grammar Assignment</div>
   <div class="login-card">
     <div style="text-align:center">
       <h2>Weekly Quiz</h2>
@@ -548,19 +564,34 @@ function renderQuizBody() {
   const qs = studentData.questions;
   let lastUnit = null, lastPart = null;
 
+  // Pre-compute unit question counts to determine new vs review
+  const unitCounts = {};
+  qs.forEach(q => {
+    if (!unitCounts[q.unit]) unitCounts[q.unit] = 0;
+    if (q.blankIndex !== 1) unitCounts[q.unit]++; // count pairs as 1
+  });
+  // 10+ questions = new unit, fewer = review
+  const isNewUnitMap = {};
+  Object.keys(unitCounts).forEach(u => { isNewUnitMap[u] = unitCounts[u] >= 10; });
+
   // Group consecutive questions sharing the same sentence (blankIndex 0 and 1)
   let i = 0;
   while (i < qs.length) {
     const q = qs[i];
+    const unitIsNew = isNewUnitMap[q.unit];
+    const reviewClass = unitIsNew ? '' : ' review';
 
     // Section header if unit or part changes
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const sec = document.createElement('div');
-      const isNewUnit = q.unit !== lastUnit;
-      sec.innerHTML = '<div class="section-header">' +
-        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
+      const isNewUnitHeader = q.unit !== lastUnit;
+      const labelText = unitIsNew ? 'New Unit' : 'Review Unit';
+      const labelClass = unitIsNew ? 'new-unit' : 'review-unit';
+      sec.innerHTML = '<div class="section-header' + reviewClass + '">' +
+        (isNewUnitHeader ? '<div class="section-label ' + labelClass + '">' + labelText + '</div>' +
+          '<div class="section-unit' + reviewClass + '">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction">' + q.instruction + '</div>' +
+        '<div class="section-instruction' + reviewClass + '">' + q.instruction + '</div>' +
         '</div>';
       body.appendChild(sec);
       lastUnit = q.unit;
@@ -922,17 +953,32 @@ function renderResults(fromTimer) {
 
   // Question rows — handle double-blank pairs
   let lastUnit = null, lastPart = null;
+
+  // Pre-compute unit types for results view
+  const unitCountsR = {};
+  gradedQuestions.forEach(q => {
+    if (!unitCountsR[q.unit]) unitCountsR[q.unit] = 0;
+    if (q.blankIndex !== 1) unitCountsR[q.unit]++;
+  });
+  const isNewUnitMapR = {};
+  Object.keys(unitCountsR).forEach(u => { isNewUnitMapR[u] = unitCountsR[u] >= 10; });
+
   let j = 0;
   while (j < gradedQuestions.length) {
     const q = gradedQuestions[j];
+    const unitIsNew = isNewUnitMapR[q.unit];
+    const reviewClass = unitIsNew ? '' : ' review';
 
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const sec = document.createElement('div');
-      const isNewUnit = q.unit !== lastUnit;
-      sec.innerHTML = '<div class="section-header">' +
-        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
+      const isNewUnitHeader = q.unit !== lastUnit;
+      const labelText = unitIsNew ? 'New Unit' : 'Review Unit';
+      const labelClass = unitIsNew ? 'new-unit' : 'review-unit';
+      sec.innerHTML = '<div class="section-header' + reviewClass + '">' +
+        (isNewUnitHeader ? '<div class="section-label ' + labelClass + '">' + labelText + '</div>' +
+          '<div class="section-unit' + reviewClass + '">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction">' + q.instruction + '</div>' +
+        '<div class="section-instruction' + reviewClass + '">' + q.instruction + '</div>' +
         '</div>';
       body.appendChild(sec);
       lastUnit = q.unit;
