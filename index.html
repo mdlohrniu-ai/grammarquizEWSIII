@@ -105,19 +105,7 @@ body {
   border-left:4px solid var(--accent);
   padding:0.5rem 0 0.5rem 1rem;
 }
-.section-header.review {
-  border-left-color: var(--gold);
-}
-.section-label {
-  font-size:0.7rem; font-weight:700; letter-spacing:0.1em;
-  text-transform:uppercase; margin-bottom:0.3rem;
-  padding:0.15rem 0.5rem; border-radius:2rem;
-  display:inline-block;
-}
-.section-label.new-unit { background:var(--accent-light); color:var(--accent); }
-.section-label.review-unit { background:var(--gold-light); color:var(--gold); }
 .section-unit { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:600; color:var(--accent); }
-.section-unit.review { color:var(--gold); }
 .section-part { font-size:0.85rem; color:var(--ink-soft); margin-top:0.2rem; }
 .section-instruction {
   background:var(--accent-light);
@@ -126,10 +114,6 @@ body {
   font-size:0.9rem;
   color:var(--accent);
   margin-top:0.5rem;
-}
-.section-instruction.review {
-  background:var(--gold-light);
-  color:var(--gold);
 }
 
 /* Question rows */
@@ -331,7 +315,7 @@ body {
 
 <!-- LOGIN -->
 <div class="screen active" id="login">
-  <div class="logo">Grammar Assignment</div>
+  <div class="logo">Grammar <span>Quiz</span></div>
   <div class="login-card">
     <div style="text-align:center">
       <h2>Weekly Quiz</h2>
@@ -372,7 +356,7 @@ body {
   <div class="quiz-body" id="quiz-body"></div>
   <div class="submit-bar">
     <div class="progress-info" id="progress-info"></div>
-    <button class="btn" onclick="submitQuiz(false)">Submit Quiz</button>
+    <button class="btn" id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
   </div>
 </div>
 
@@ -564,34 +548,19 @@ function renderQuizBody() {
   const qs = studentData.questions;
   let lastUnit = null, lastPart = null;
 
-  // Pre-compute unit question counts to determine new vs review
-  const unitCounts = {};
-  qs.forEach(q => {
-    if (!unitCounts[q.unit]) unitCounts[q.unit] = 0;
-    if (q.blankIndex !== 1) unitCounts[q.unit]++; // count pairs as 1
-  });
-  // 10+ questions = new unit, fewer = review
-  const isNewUnitMap = {};
-  Object.keys(unitCounts).forEach(u => { isNewUnitMap[u] = unitCounts[u] >= 10; });
-
   // Group consecutive questions sharing the same sentence (blankIndex 0 and 1)
   let i = 0;
   while (i < qs.length) {
     const q = qs[i];
-    const unitIsNew = isNewUnitMap[q.unit];
-    const reviewClass = unitIsNew ? '' : ' review';
 
     // Section header if unit or part changes
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const sec = document.createElement('div');
-      const isNewUnitHeader = q.unit !== lastUnit;
-      const labelText = unitIsNew ? 'New Unit' : 'Review Unit';
-      const labelClass = unitIsNew ? 'new-unit' : 'review-unit';
-      sec.innerHTML = '<div class="section-header' + reviewClass + '">' +
-        (isNewUnitHeader ? '<div class="section-label ' + labelClass + '">' + labelText + '</div>' +
-          '<div class="section-unit' + reviewClass + '">' + q.unit + '</div>' : '') +
+      const isNewUnit = q.unit !== lastUnit;
+      sec.innerHTML = '<div class="section-header">' +
+        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction' + reviewClass + '">' + q.instruction + '</div>' +
+        '<div class="section-instruction">' + q.instruction + '</div>' +
         '</div>';
       body.appendChild(sec);
       lastUnit = q.unit;
@@ -728,8 +697,12 @@ function gradeAnswer(studentAnswer, correctAnswer) {
 }
 
 // ── SUBMIT QUIZ (go to review) ────────────────────────────────────────────────
-function submitQuiz(fromTimer) {
+async function submitQuiz(fromTimer) {
   clearInterval(timerInterval);
+
+  // Disable submit button to prevent double submission
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
 
   // Collect final answers from inputs
   studentData.questions.forEach((q, i) => {
@@ -754,7 +727,7 @@ function submitQuiz(fromTimer) {
     };
   });
 
-  // For double-blank pairs: combine scores (1+1=1pt, 1+0=0.5pt, 0+0=0pt)
+  // For double-blank pairs: combine scores
   gradedQuestions = [];
   let gi = 0;
   while (gi < rawGraded.length) {
@@ -766,10 +739,8 @@ function submitQuiz(fromTimer) {
 
     if (isFirstOfPair) {
       const gq2 = rawGraded[gi + 1];
-      // Combined score: both correct=1, one correct=0.5, none=0
-      const combinedScore = gq.score + gq2.score; // each blank already 0 or 0.5, sum = 0, 0.5, or 1
+      const combinedScore = gq.score + gq2.score;
       const combinedResult = combinedScore === 1 ? 'correct' : combinedScore > 0 ? 'half' : (gq.result === 'skipped' && gq2.result === 'skipped' ? 'skipped' : 'wrong');
-      // Keep both as separate entries but with combined score reflected
       gradedQuestions.push({ ...gq,  score: gq.score,  result: gq.result,  flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
       gradedQuestions.push({ ...gq2, score: gq2.score, result: gq2.result, flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
       gi += 2;
@@ -778,6 +749,70 @@ function submitQuiz(fromTimer) {
       gi++;
     }
   }
+
+  // ── Calculate scores for submission payload ───────────────
+  let totalScore = 0;
+  let totalPossible = 0;
+  let pi = 0;
+  while (pi < gradedQuestions.length) {
+    const pq = gradedQuestions[pi];
+    if (pq.blankIndex === 0 && pi + 1 < gradedQuestions.length && gradedQuestions[pi+1].blankIndex === 1) {
+      totalScore += pq.pairScore !== undefined ? pq.pairScore : (pq.score + gradedQuestions[pi+1].score) / 2;
+      totalPossible += 1;
+      pi += 2;
+    } else {
+      totalScore += pq.score;
+      totalPossible += 1;
+      pi++;
+    }
+  }
+
+  const R = calcUnitResults(gradedQuestions);
+  const payload = {
+    studentNumber: studentData.studentNumber,
+    name: studentData.name,
+    week: studentData.week,
+    score: totalScore,
+    total: totalPossible,
+    quizPoints: R.totalPoints,
+    newUnitPassed: R.newUnitPassed,
+    reviewUnitPassed: R.reviewUnitPassed,
+    bonusAttempt: R.bonusAttempt,
+    bonusEarned: R.bonusEarned,
+    allReview: R.allReview,
+    unitResults: R.units,
+    timedOut: timedOut,
+    questions: gradedQuestions
+  };
+
+  // ── Submit to Google Sheets NOW, before showing results ───
+  try {
+    if (MOCK_MODE) {
+      await new Promise(r => setTimeout(r, 800));
+      MOCK_SUBMITTED[String(studentData.studentNumber)] = {
+        name: studentData.name, week: studentData.week,
+        score: R.totalPoints, total: 40
+      };
+      console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
+    } else {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+  } catch(err) {
+    // Submission failed — warn student but still allow review
+    console.warn('Submission error:', err);
+    const errBanner = document.createElement('div');
+    errBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b83232;color:white;text-align:center;padding:0.75rem;font-size:0.9rem;z-index:999';
+    errBanner.textContent = '⚠️ Submission failed. Please check your connection and contact your teacher.';
+    document.body.appendChild(errBanner);
+  }
+
+  // Store payload for flag submission later
+  window._submittedPayload = payload;
 
   renderResults(fromTimer);
 }
@@ -953,32 +988,17 @@ function renderResults(fromTimer) {
 
   // Question rows — handle double-blank pairs
   let lastUnit = null, lastPart = null;
-
-  // Pre-compute unit types for results view
-  const unitCountsR = {};
-  gradedQuestions.forEach(q => {
-    if (!unitCountsR[q.unit]) unitCountsR[q.unit] = 0;
-    if (q.blankIndex !== 1) unitCountsR[q.unit]++;
-  });
-  const isNewUnitMapR = {};
-  Object.keys(unitCountsR).forEach(u => { isNewUnitMapR[u] = unitCountsR[u] >= 10; });
-
   let j = 0;
   while (j < gradedQuestions.length) {
     const q = gradedQuestions[j];
-    const unitIsNew = isNewUnitMapR[q.unit];
-    const reviewClass = unitIsNew ? '' : ' review';
 
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const sec = document.createElement('div');
-      const isNewUnitHeader = q.unit !== lastUnit;
-      const labelText = unitIsNew ? 'New Unit' : 'Review Unit';
-      const labelClass = unitIsNew ? 'new-unit' : 'review-unit';
-      sec.innerHTML = '<div class="section-header' + reviewClass + '">' +
-        (isNewUnitHeader ? '<div class="section-label ' + labelClass + '">' + labelText + '</div>' +
-          '<div class="section-unit' + reviewClass + '">' + q.unit + '</div>' : '') +
+      const isNewUnit = q.unit !== lastUnit;
+      sec.innerHTML = '<div class="section-header">' +
+        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction' + reviewClass + '">' + q.instruction + '</div>' +
+        '<div class="section-instruction">' + q.instruction + '</div>' +
         '</div>';
       body.appendChild(sec);
       lastUnit = q.unit;
@@ -1109,63 +1129,40 @@ function updateFlagCount() {
 // ── FINAL SUBMIT ──────────────────────────────────────────────────────────────
 async function finalSubmit() {
   document.getElementById('final-submit-btn').disabled = true;
-  document.getElementById('final-submit-btn').textContent = 'Submitting…';
+  document.getElementById('final-submit-btn').textContent = 'Saving…';
 
-  // Calculate total score counting pairs as 1 question
-  let totalScore = 0;
-  let totalPossible = 0;
-  let pi = 0;
-  while (pi < gradedQuestions.length) {
-    const pq = gradedQuestions[pi];
-    if (pq.blankIndex === 0 && pi + 1 < gradedQuestions.length && gradedQuestions[pi+1].blankIndex === 1) {
-      totalScore += pq.pairScore !== undefined ? pq.pairScore : (pq.score + gradedQuestions[pi+1].score) / 2;
-      totalPossible += 1;
-      pi += 2;
-    } else {
-      totalScore += pq.score;
-      totalPossible += 1;
-      pi++;
+  // Scores already submitted — just send updated flag data if any flags exist
+  const flagged = gradedQuestions.filter(q => q.flagged);
+  if (flagged.length > 0) {
+    const flagPayload = {
+      studentNumber: studentData.studentNumber,
+      name: studentData.name,
+      week: studentData.week,
+      flagsOnly: true,
+      questions: gradedQuestions
+    };
+    try {
+      if (MOCK_MODE) {
+        await new Promise(r => setTimeout(r, 400));
+        console.log('MOCK FLAG SUBMIT — payload:', JSON.stringify(flagPayload, null, 2));
+      } else {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(flagPayload)
+        });
+      }
+    } catch(err) {
+      console.warn('Flag submission error:', err);
     }
   }
 
+  // Use the payload that was already submitted
+  const payload = window._submittedPayload || {};
   const R3 = calcUnitResults(gradedQuestions);
-  const payload = {
-    studentNumber: studentData.studentNumber,
-    name: studentData.name,
-    week: studentData.week,
-    score: totalScore,
-    total: totalPossible,
-    quizPoints: R3.totalPoints,
-    newUnitPassed: R3.newUnitPassed,
-    reviewUnitPassed: R3.reviewUnitPassed,
-    bonusAttempt: R3.bonusAttempt,
-    bonusEarned: R3.bonusEarned,
-    allReview: R3.allReview,
-    unitResults: R3.units,
-    timedOut: timedOut,
-    questions: gradedQuestions
-  };
-
-  try {
-    if (MOCK_MODE) {
-      await new Promise(r => setTimeout(r, 600));
-      // Record as submitted so retake test works
-      MOCK_SUBMITTED[String(studentData.studentNumber)] = {
-        name: studentData.name, week: studentData.week,
-        score: R3.totalPoints, total: 40
-      };
-      console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
-    } else {
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
-  } catch(err) {
-    console.warn('Submission error:', err);
-  }
+  const totalScore = payload.score || 0;
+  const totalPossible = payload.total || 0;
 
   // Show done screen
   const R2 = calcUnitResults(gradedQuestions);
