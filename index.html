@@ -32,6 +32,10 @@ body {
 
 /* ── SCREENS ── */
 .screen { display:none; min-height:100vh; }
+@keyframes pulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
 .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; }
 
 /* ── LOGIN ── */
@@ -330,8 +334,36 @@ body {
     <p class="loading-msg" id="login-loading">Looking up your quiz…</p>
   </div>
   <p style="font-size:0.8rem;color:var(--ink-soft);margin-top:1rem;max-width:400px;text-align:center;line-height:1.5">
-    You have <strong>10 minutes</strong> once the quiz starts. The quiz can only be submitted once.
+    You have <strong id="login-time-hint">10 minutes</strong> once the quiz starts. The quiz can only be submitted once.
   </p>
+</div>
+
+<!-- WAITING FOR START -->
+<div class="screen" id="waiting-start">
+  <div class="already-card" style="text-align:center">
+    <div style="font-size:2rem;margin-bottom:1rem">⏳</div>
+    <h2>Please wait for quiz to start.</h2>
+    <p style="color:var(--ink-soft);font-size:0.9rem;margin-top:0.5rem" id="waiting-start-name"></p>
+    <div style="margin-top:1.5rem;display:flex;gap:0.4rem;justify-content:center" id="waiting-dots">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0s"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0.3s"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0.6s"></span>
+    </div>
+  </div>
+</div>
+
+<!-- WAITING FOR OTHERS TO FINISH -->
+<div class="screen" id="waiting-results">
+  <div class="already-card" style="text-align:center">
+    <div style="font-size:2rem;margin-bottom:1rem">⏳</div>
+    <h2>Waiting for other students to finish quiz.</h2>
+    <p style="color:var(--ink-soft);font-size:0.9rem;margin-top:0.5rem" id="waiting-results-sub"></p>
+    <div style="margin-top:1.5rem;display:flex;gap:0.4rem;justify-content:center">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0s"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0.3s"></span>
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite 0.6s"></span>
+    </div>
+  </div>
 </div>
 
 <!-- ALREADY SUBMITTED -->
@@ -356,7 +388,7 @@ body {
   <div class="quiz-body" id="quiz-body"></div>
   <div class="submit-bar">
     <div class="progress-info" id="progress-info"></div>
-    <button class="btn" id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
+    <button class="btn" id="submit-btn" onclick="confirmSubmit()">Submit Quiz</button>
   </div>
 </div>
 
@@ -468,6 +500,8 @@ const MOCK_STUDENTS = {
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let studentData = null;   // { studentNumber, name, week, questions }
+let pollInterval = null;  // for waiting screen polls
+let testDuration = 10;    // minutes, loaded from server
 let answers = [];         // student's typed answers, indexed by question index
 let timerInterval = null;
 let secondsLeft = QUIZ_DURATION;
@@ -524,13 +558,74 @@ async function loadQuiz() {
       studentData = data;
       studentData.noReview = data.noReview === true;
       answers = new Array(data.questions.length).fill('');
-      startQuiz();
+      // Use test duration from server if provided
+      if (data.testDuration) testDuration = data.testDuration;
+      const hint = document.getElementById('login-time-hint');
+      if (hint) hint.textContent = testDuration + ' minutes';
+      // Go to waiting screen, poll for start signal
+      document.getElementById('waiting-start-name').textContent =
+        studentData.name + ' · Week ' + studentData.week;
+      show('waiting-start');
+      startPollForStart();
     }
   } catch(err) {
     document.getElementById('login-loading').style.display = 'none';
     document.querySelector('#login .btn').disabled = false;
     showError('login-error', 'Connection error. Please try again.');
   }
+}
+
+// ── POLL FOR START ───────────────────────────────────────────────────────────
+function startPollForStart() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      if (MOCK_MODE) {
+        // In mock mode, auto-start after 3 seconds
+        clearInterval(pollInterval);
+        pollInterval = null;
+        startQuiz();
+        return;
+      }
+      const res = await fetch(`${SCRIPT_URL}?action=pollStart&week=${encodeURIComponent(studentData.week)}`);
+      const data = await res.json();
+      if (data.started) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        startQuiz();
+      }
+    } catch(err) {
+      console.warn('Poll error:', err);
+    }
+  }, 3000);
+}
+
+// ── POLL FOR RESULTS UNLOCK ───────────────────────────────────────────────────
+function startPollForResults() {
+  const sub = document.getElementById('waiting-results-sub');
+  if (sub) sub.textContent = studentData.name + ' · Week ' + studentData.week;
+  show('waiting-results');
+
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      if (MOCK_MODE) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        renderResults(false);
+        return;
+      }
+      const res = await fetch(`${SCRIPT_URL}?action=pollResults&week=${encodeURIComponent(studentData.week)}`);
+      const data = await res.json();
+      if (data.reveal) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        renderResults(false);
+      }
+    } catch(err) {
+      console.warn('Poll error:', err);
+    }
+  }, 3000);
 }
 
 // ── QUIZ ──────────────────────────────────────────────────────────────────────
@@ -632,7 +727,7 @@ function updateProgress() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────────
 function startTimer() {
-  secondsLeft = QUIZ_DURATION;
+  secondsLeft = testDuration * 60;
   updateTimerDisplay();
   timerInterval = setInterval(() => {
     secondsLeft--;
@@ -697,6 +792,11 @@ function gradeAnswer(studentAnswer, correctAnswer) {
 }
 
 // ── SUBMIT QUIZ (go to review) ────────────────────────────────────────────────
+function confirmSubmit() {
+  const confirmed = confirm('Are you sure you want to submit? You cannot change your answers after submitting.');
+  if (confirmed) submitQuiz(false);
+}
+
 async function submitQuiz(fromTimer) {
   clearInterval(timerInterval);
 
@@ -814,7 +914,8 @@ async function submitQuiz(fromTimer) {
   // Store payload for flag submission later
   window._submittedPayload = payload;
 
-  renderResults(fromTimer);
+  // Go to waiting screen — results reveal is synchronized
+  startPollForResults();
 }
 
 // ── UNIT PASS/FAIL LOGIC ─────────────────────────────────────────────────────
