@@ -394,6 +394,9 @@ body {
 
 <!-- RESULTS (review before final submit) -->
 <div class="screen" id="results">
+  <div id="relogin-notice" style="display:none;background:#1A4A6B;color:#aac4db;font-size:0.82rem;padding:0.6rem 1.25rem;text-align:center;letter-spacing:0.01em;">
+    ✓ Your quiz was already submitted. You can flag questions for teacher review below.
+  </div>
   <div class="results-header">
     <div>
       <div class="results-title">Review Your Answers</div>
@@ -404,7 +407,7 @@ body {
   <div class="results-body" id="results-body"></div>
   <div class="final-submit-bar">
     <div class="flag-count" id="flag-count"></div>
-    <button class="btn" id="final-submit-btn" onclick="finalSubmit()">Submit & Finish</button>
+    <button class="btn" id="final-submit-btn" onclick="finalSubmit()">Done →</button>
   </div>
 </div>
 
@@ -501,6 +504,7 @@ const MOCK_STUDENTS = {
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let studentData = null;   // { studentNumber, name, week, questions }
 let pollInterval = null;  // for waiting screen polls
+let isRelogin = false;    // true when student re-logs in after submission
 let testDuration = 10;    // minutes, loaded from server
 let answers = [];         // student's typed answers, indexed by question index
 let timerInterval = null;
@@ -548,13 +552,62 @@ async function loadQuiz() {
     if (data.error) return showError('login-error', data.error);
 
     if (data.alreadySubmitted) {
-      document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
-      document.getElementById('already-meta').textContent =
-        `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
-      return show('already');
+      // Fetch full results so student can review answers and update flags
+      document.getElementById('login-loading').style.display = 'block';
+      document.getElementById('login-loading').textContent = 'Loading your results…';
+      try {
+        let resultsData;
+        if (MOCK_MODE) {
+          await new Promise(r => setTimeout(r, 600));
+          resultsData = { error: 'Re-login not available in mock mode.' };
+        } else {
+          const res2 = await fetch(`${SCRIPT_URL}?action=getResults&student=${encodeURIComponent(num)}&week=${encodeURIComponent(data.week)}`);
+          resultsData = await res2.json();
+        }
+        document.getElementById('login-loading').style.display = 'none';
+        document.getElementById('login-loading').textContent = 'Looking up your quiz…';
+
+        if (resultsData.error || !resultsData.questions) {
+          // Fallback to simple already-submitted screen
+          document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
+          document.getElementById('already-meta').textContent =
+            `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
+          return show('already');
+        }
+
+        // Rebuild studentData and gradedQuestions from stored results
+        isRelogin = true;
+        studentData = {
+          studentNumber: num,
+          name: data.name,
+          week: data.week,
+          noReview: resultsData.noReview === true,
+          questions: resultsData.questions
+        };
+        gradedQuestions = resultsData.questions.map(q => ({
+          ...q,
+          flagged: q.flagged || false,
+          flagReason: q.flagReason || ''
+        }));
+
+        // Show blue notice bar and results screen
+        document.getElementById('relogin-notice').style.display = 'block';
+        document.getElementById('final-submit-btn').textContent = 'Save flags →';
+        renderResults(false);
+      } catch(err) {
+        document.getElementById('login-loading').style.display = 'none';
+        document.getElementById('login-loading').textContent = 'Looking up your quiz…';
+        document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
+        document.getElementById('already-meta').textContent =
+          `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
+        return show('already');
+      }
+      return;
     }
 
     if (data.found) {
+      isRelogin = false;
+      document.getElementById('relogin-notice').style.display = 'none';
       studentData = data;
       studentData.noReview = data.noReview === true;
       answers = new Array(data.questions.length).fill('');
@@ -1257,6 +1310,13 @@ async function finalSubmit() {
     } catch(err) {
       console.warn('Flag submission error:', err);
     }
+  }
+
+  // If re-login, just show a confirmation and don't navigate to done screen
+  if (isRelogin) {
+    document.getElementById('final-submit-btn').textContent = 'Saved ✓';
+    document.getElementById('flag-count').textContent = 'Flags saved. You may close this tab.';
+    return;
   }
 
   // Use the payload that was already submitted
