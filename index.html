@@ -733,6 +733,7 @@ function renderQuizBody() {
 
   // Group consecutive questions sharing the same sentence (blankIndex 0 and 1)
   let i = 0;
+  let displayNum = 0; // tracks real question number, excluding examples
   while (i < qs.length) {
     const q = qs[i];
 
@@ -777,12 +778,13 @@ function renderQuizBody() {
     // Check if this is first of a double-blank pair
     const isFirstOfPair = q.blankIndex === 0 && i + 1 < qs.length && qs[i+1].blankIndex === 1 && qs[i+1].question === q.question;
 
+    displayNum++;
     if (isFirstOfPair) {
       const q2 = qs[i + 1];
       // Split question at blanks — show sentence once, two input boxes
       const row = document.createElement('div');
       row.className = 'question-row';
-      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+      row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
         '<div class="q-content">' +
         '<div class="q-sentence">' + formatQuestionDouble(q.question, i, i+1) + '</div>' +
         '</div>';
@@ -792,7 +794,7 @@ function renderQuizBody() {
       // Normal single-blank question
       const row = document.createElement('div');
       row.className = 'question-row';
-      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+      row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
         '<div class="q-content">' +
         '<div class="q-sentence">' + formatQuestion(q.question) + '</div>' +
         '<input class="q-input" type="text" id="input-' + i + '"' +
@@ -1237,6 +1239,7 @@ function renderResults(fromTimer) {
   // Question rows — handle double-blank pairs
   let lastUnit = null, lastPart = null;
   let j = 0;
+  let displayNumR = 0; // tracks real question number, excluding examples
   while (j < gradedQuestions.length) {
     const q = gradedQuestions[j];
 
@@ -1295,6 +1298,7 @@ function renderResults(fromTimer) {
 
     const scoreLabels = { correct: '+1 pt', half: '+0.5 pt', wrong: '0 pt', skipped: '0 pt', example: '' };
 
+    displayNumR++;
     // Check if this is first of a double-blank pair
     const isFirstOfPair = q.blankIndex === 0 &&
       j + 1 < gradedQuestions.length &&
@@ -1327,7 +1331,7 @@ function renderResults(fromTimer) {
 
       const row = document.createElement('div');
       row.className = 'result-row';
-      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div>' +
         '<div class="result-content">' +
         '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
         makeBlankResult(q, j) +
@@ -1348,7 +1352,7 @@ function renderResults(fromTimer) {
 
       const row = document.createElement('div');
       row.className = 'result-row';
-      row.innerHTML = '<div class="q-num">' + q.number + '.</div>' +
+      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div>' +
         '<div class="result-content">' +
         '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
         '<div class="answer-box ' + q.result + '" id="answer-box-' + j + '">' +
