@@ -832,9 +832,15 @@ function saveAnswer(i, val) {
 }
 
 function updateProgress() {
-  const answered = answers.filter(a => a.trim() !== '').length;
+  // Exclude example questions from the count
+  const nonExamples = studentData.questions.filter(q => !q.isExample && String(q.number).toUpperCase() !== 'EX');
+  const total = nonExamples.length;
+  const answered = nonExamples.filter((q, i) => {
+    const idx = studentData.questions.indexOf(q);
+    return answers[idx] && answers[idx].trim() !== '';
+  }).length;
   document.getElementById('progress-info').innerHTML =
-    `<strong>${answered}</strong> of <strong>${studentData.questions.length}</strong> answered`;
+    `<strong>${answered}</strong> of <strong>${total}</strong> answered`;
 }
 
 // ── TIMER ─────────────────────────────────────────────────────────────────────
@@ -1234,6 +1240,41 @@ function renderResults(fromTimer) {
   while (j < gradedQuestions.length) {
     const q = gradedQuestions[j];
 
+    // Skip example questions — render as example block, not a graded row
+    if (q.isExample || String(q.number).toUpperCase() === 'EX') {
+      if (q.unit !== lastUnit || q.part !== lastPart) {
+        const isNewUnit = q.unit !== lastUnit;
+        if (isNewUnit) {
+          const unitBlock = document.createElement('div');
+          unitBlock.className = 'section-unit-block';
+          unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
+          body.appendChild(unitBlock);
+        }
+        const sec = document.createElement('div');
+        sec.innerHTML = '<div class="section-header">' +
+          '<div class="section-part">' + q.part + '</div>' +
+          '<div class="section-instruction">' + q.instruction + '</div>' +
+          '</div>';
+        body.appendChild(sec);
+        lastUnit = q.unit;
+        lastPart = q.part;
+      }
+      const ex = document.createElement('div');
+      ex.className = 'example-block';
+      const exFormatted = q.question.replace(/_+/g,
+        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
+      );
+      ex.innerHTML =
+        '<div class="example-label">📝 Example（例）</div>' +
+        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
+        '<input class="q-input" type="text" value="' + (q.answer || q.correctAnswer || '').replace(/"/g, '&quot;') + '" ' +
+        'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
+        'autocomplete="off" autocorrect="off" spellcheck="false">';
+      body.appendChild(ex);
+      j++;
+      continue;
+    }
+
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const isNewUnit = q.unit !== lastUnit;
       if (isNewUnit) {
@@ -1252,7 +1293,7 @@ function renderResults(fromTimer) {
       lastPart = q.part;
     }
 
-    const scoreLabels = { correct: '+1 pt', half: '+0.5 pt', wrong: '0 pt', skipped: '0 pt' };
+    const scoreLabels = { correct: '+1 pt', half: '+0.5 pt', wrong: '0 pt', skipped: '0 pt', example: '' };
 
     // Check if this is first of a double-blank pair
     const isFirstOfPair = q.blankIndex === 0 &&
