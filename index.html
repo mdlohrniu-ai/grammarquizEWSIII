@@ -1081,6 +1081,7 @@ function calcUnitResults(questions) {
     let total = 0;
     let score = 0;
     u.questions.forEach(uq => {
+      if (uq.isExample || String(uq.number).toUpperCase() === 'EX') return; // skip examples
       if (uq.blankIndex === 1) return; // skip second blank — already counted via blankIndex=0
       total += 1;
       if (uq.blankIndex === 0 && uq.pairScore !== undefined) {
