@@ -1001,28 +1001,54 @@ async function submitQuiz(fromTimer) {
   };
 
   // ── Submit to Google Sheets NOW, before showing results ───
-  try {
-    if (MOCK_MODE) {
-      await new Promise(r => setTimeout(r, 800));
-      MOCK_SUBMITTED[String(studentData.studentNumber)] = {
-        name: studentData.name, week: studentData.week,
-        score: R.totalPoints, total: 40
-      };
-      console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
-    } else {
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+  // Retry up to 3 times if submission fails or row count is incomplete
+  const MAX_RETRIES = 3;
+  let submitSuccess = false;
+
+  if (MOCK_MODE) {
+    await new Promise(r => setTimeout(r, 800));
+    MOCK_SUBMITTED[String(studentData.studentNumber)] = {
+      name: studentData.name, week: studentData.week,
+      score: R.totalPoints, total: 40
+    };
+    console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
+    submitSuccess = true;
+  } else {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Use a verification-capable fetch (same-origin redirect handled by GAS)
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        // no-cors means we can't read the response body directly,
+        // so do a quick GET verification after posting
+        await new Promise(r => setTimeout(r, 1500)); // wait for write to complete
+        const verifyRes = await fetch(
+          `${SCRIPT_URL}?action=verifySubmission&student=${encodeURIComponent(studentData.studentNumber)}&week=${encodeURIComponent(studentData.week)}`
+        );
+        const verifyData = await verifyRes.json();
+        if (verifyData.complete) {
+          submitSuccess = true;
+          console.log(`Submission verified on attempt ${attempt}`);
+          break;
+        } else {
+          console.warn(`Attempt ${attempt}: incomplete write (${verifyData.written}/${verifyData.expected}), retrying...`);
+          if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      } catch(err) {
+        console.warn(`Attempt ${attempt} failed:`, err);
+        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
     }
-  } catch(err) {
-    // Submission failed — warn student but still allow review
-    console.warn('Submission error:', err);
+  }
+
+  if (!submitSuccess) {
     const errBanner = document.createElement('div');
     errBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b83232;color:white;text-align:center;padding:0.75rem;font-size:0.9rem;z-index:999';
-    errBanner.textContent = '⚠️ Submission failed. Please check your connection and contact your teacher.';
+    errBanner.textContent = '⚠️ Submission may be incomplete. Please tell your teacher immediately.';
     document.body.appendChild(errBanner);
   }
 
