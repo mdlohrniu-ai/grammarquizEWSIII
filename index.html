@@ -107,17 +107,45 @@ body {
 /* Section headers */
 .section-header {
   border-left:4px solid var(--accent);
-  padding:0.5rem 0 0.5rem 1rem;
+  padding:0.6rem 0 0.6rem 1rem;
+  margin-bottom:0.25rem;
 }
-.section-unit { font-family:'Fraunces',serif; font-size:1.1rem; font-weight:600; color:var(--accent); }
-.section-part { font-size:0.85rem; color:var(--ink-soft); margin-top:0.2rem; }
+.section-unit { font-family:'Fraunces',serif; font-size:1.15rem; font-weight:600; color:var(--accent); }
+.section-part { font-size:0.9rem; font-weight:600; color:var(--ink-soft); margin-top:0.4rem; }
 .section-instruction {
   background:var(--accent-light);
   border-radius:0.6rem;
-  padding:0.7rem 1rem;
-  font-size:0.9rem;
+  padding:0.8rem 1rem;
+  font-size:0.92rem;
   color:var(--accent);
-  margin-top:0.5rem;
+  margin-top:0.6rem;
+  line-height:1.5;
+}
+.example-block {
+  background:#F0F7FF;
+  border:1.5px dashed var(--accent);
+  border-radius:0.6rem;
+  padding:0.75rem 1rem;
+  margin:0.6rem 0 0.75rem 0;
+  font-size:0.9rem;
+}
+.example-label {
+  font-size:0.72rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:0.4rem;
+}
+.example-question { color:var(--ink); margin-bottom:0.3rem; }
+.example-answer {
+  display:inline-block;
+  background:var(--accent);
+  color:#fff;
+  border-radius:4px;
+  padding:1px 8px;
+  font-size:0.88rem;
+  margin-top:0.2rem;
 }
 
 /* Question rows */
@@ -715,6 +743,19 @@ function renderQuizBody() {
       lastPart = q.part;
     }
 
+    // Example question — display only, not graded
+    if (q.isExample) {
+      const ex = document.createElement('div');
+      ex.className = 'example-block';
+      ex.innerHTML =
+        '<div class="example-label">📝 Example</div>' +
+        '<div class="example-question">' + q.question + '</div>' +
+        '<span class="example-answer">' + q.answer + '</span>';
+      body.appendChild(ex);
+      i++;
+      continue;
+    }
+
     // Check if this is first of a double-blank pair
     const isFirstOfPair = q.blankIndex === 0 && i + 1 < qs.length && qs[i+1].blankIndex === 1 && qs[i+1].question === q.question;
 
@@ -863,8 +904,11 @@ async function submitQuiz(fromTimer) {
     if (input) answers[i] = input.value.trim();
   });
 
-  // Grade all questions — handle double-blank pairs with combined scoring
+  // Grade all questions — skip examples, handle double-blank pairs
   const rawGraded = studentData.questions.map((q, i) => {
+    if (q.isExample) {
+      return { ...q, studentAnswer: q.answer, correctAnswer: q.answer, result: 'example', score: 0, flagged: false, flagReason: '' };
+    }
     const isInPair = q.blankIndex === 0 || q.blankIndex === 1;
     const { result, score } = isInPair
       ? gradeAnswerHalf(answers[i], q.answer)
