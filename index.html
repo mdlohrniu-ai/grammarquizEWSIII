@@ -105,20 +105,27 @@ body {
 .quiz-body { width:100%; max-width:760px; padding:2rem 1rem; display:flex; flex-direction:column; gap:2rem; }
 
 /* Section headers */
-.section-header {
-  border-left:4px solid var(--accent);
-  padding:0.6rem 0 0.6rem 1rem;
-  margin-bottom:0.25rem;
+.section-unit-block {
+  margin-top:1.25rem;
+  margin-bottom:0.5rem;
+  padding-bottom:0.4rem;
+  border-bottom:2px solid var(--accent);
 }
 .section-unit { font-family:'Fraunces',serif; font-size:1.15rem; font-weight:600; color:var(--accent); }
-.section-part { font-size:0.9rem; font-weight:600; color:var(--ink-soft); margin-top:0.4rem; }
+.section-header {
+  border-left:4px solid var(--accent);
+  padding:0.5rem 0 0.5rem 1rem;
+  margin-top:0.75rem;
+  margin-bottom:0.25rem;
+}
+.section-part { font-size:0.9rem; font-weight:600; color:var(--ink-soft); }
 .section-instruction {
   background:var(--accent-light);
   border-radius:0.6rem;
   padding:0.8rem 1rem;
   font-size:0.92rem;
   color:var(--accent);
-  margin-top:0.6rem;
+  margin-top:0.5rem;
   line-height:1.5;
 }
 .example-block {
@@ -731,10 +738,15 @@ function renderQuizBody() {
 
     // Section header if unit or part changes
     if (q.unit !== lastUnit || q.part !== lastPart) {
-      const sec = document.createElement('div');
       const isNewUnit = q.unit !== lastUnit;
+      if (isNewUnit) {
+        const unitBlock = document.createElement('div');
+        unitBlock.className = 'section-unit-block';
+        unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
+        body.appendChild(unitBlock);
+      }
+      const sec = document.createElement('div');
       sec.innerHTML = '<div class="section-header">' +
-        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
         '<div class="section-instruction">' + q.instruction + '</div>' +
         '</div>';
@@ -747,10 +759,16 @@ function renderQuizBody() {
     if (q.isExample) {
       const ex = document.createElement('div');
       ex.className = 'example-block';
+      // Format the question the same way as real questions (replace blanks with input)
+      const exFormatted = q.question.replace(/_+/g,
+        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
+      );
       ex.innerHTML =
-        '<div class="example-label">📝 Example</div>' +
-        '<div class="example-question">' + q.question + '</div>' +
-        '<span class="example-answer">' + q.answer + '</span>';
+        '<div class="example-label">📝 Example（例）</div>' +
+        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
+        '<input class="q-input" type="text" value="' + q.answer.replace(/"/g, '&quot;') + '" ' +
+        'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
+        'autocomplete="off" autocorrect="off" spellcheck="false">';
       body.appendChild(ex);
       i++;
       continue;
@@ -1191,10 +1209,15 @@ function renderResults(fromTimer) {
     const q = gradedQuestions[j];
 
     if (q.unit !== lastUnit || q.part !== lastPart) {
-      const sec = document.createElement('div');
       const isNewUnit = q.unit !== lastUnit;
+      if (isNewUnit) {
+        const unitBlock = document.createElement('div');
+        unitBlock.className = 'section-unit-block';
+        unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
+        body.appendChild(unitBlock);
+      }
+      const sec = document.createElement('div');
       sec.innerHTML = '<div class="section-header">' +
-        (isNewUnit ? '<div class="section-unit">' + q.unit + '</div>' : '') +
         '<div class="section-part">' + q.part + '</div>' +
         '<div class="section-instruction">' + q.instruction + '</div>' +
         '</div>';
