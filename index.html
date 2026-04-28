@@ -767,7 +767,7 @@ function renderQuizBody() {
       ex.innerHTML =
         '<div class="example-label">📝 Example（例）</div>' +
         '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
-        '<input class="q-input" type="text" value="' + q.answer.replace(/"/g, '&quot;') + '" ' +
+        '<input class="q-input" type="text" value="' + q.answer.split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
         'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
         'autocomplete="off" autocorrect="off" spellcheck="false">';
       body.appendChild(ex);
@@ -1271,7 +1271,7 @@ function renderResults(fromTimer) {
       ex.innerHTML =
         '<div class="example-label">📝 Example（例）</div>' +
         '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
-        '<input class="q-input" type="text" value="' + (q.answer || q.correctAnswer || '').replace(/"/g, '&quot;') + '" ' +
+        '<input class="q-input" type="text" value="' + (q.answer || q.correctAnswer || '').split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
         'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
         'autocomplete="off" autocorrect="off" spellcheck="false">';
       body.appendChild(ex);
