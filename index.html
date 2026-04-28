@@ -979,6 +979,7 @@ async function submitQuiz(fromTimer) {
   let pi = 0;
   while (pi < gradedQuestions.length) {
     const pq = gradedQuestions[pi];
+    if (pq.isExample || String(pq.number).toUpperCase() === 'EX') { pi++; continue; }
     if (pq.blankIndex === 0 && pi + 1 < gradedQuestions.length && gradedQuestions[pi+1].blankIndex === 1) {
       totalScore += pq.pairScore !== undefined ? pq.pairScore : (pq.score + gradedQuestions[pi+1].score) / 2;
       totalPossible += 1;
@@ -1129,6 +1130,7 @@ function renderResults(fromTimer) {
   let ri = 0;
   while (ri < gradedQuestions.length) {
     const rq = gradedQuestions[ri];
+    if (rq.isExample || String(rq.number).toUpperCase() === 'EX') { ri++; continue; }
     if (rq.blankIndex === 0 && ri + 1 < gradedQuestions.length && gradedQuestions[ri+1].blankIndex === 1) {
       totalScore += rq.pairScore !== undefined ? rq.pairScore : (rq.score + gradedQuestions[ri+1].score) / 2;
       totalPossible += 1;
