@@ -603,11 +603,45 @@ async function loadQuiz() {
         document.getElementById('login-loading').textContent = 'Looking up your quiz…';
 
         if (resultsData.error || !resultsData.questions) {
-          // Fallback to simple already-submitted screen
-          document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
-          document.getElementById('already-meta').textContent =
-            `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
-          return show('already');
+          // Check localStorage for saved quiz data before giving up
+          const saved = lsLoad(num, data.week);
+          if (saved && saved.gradedQuestions && saved.gradedQuestions.length > 0) {
+            // Resend saved data to server
+            try {
+              document.getElementById('login-loading').textContent = 'Resending your answers…';
+              await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saved.payload)
+              });
+              await new Promise(r => setTimeout(r, 2000));
+              // Try loading results again
+              const res3 = await fetch(`${SCRIPT_URL}?action=getResults&student=${encodeURIComponent(num)}&week=${encodeURIComponent(data.week)}`);
+              const retryData = await res3.json();
+              if (retryData.questions && retryData.questions.length > 0) {
+                lsClear(num, data.week);
+                resultsData = retryData;
+                // Fall through to show results below
+              } else {
+                // Resend worked but can't verify yet — show results from localStorage
+                resultsData = { questions: saved.gradedQuestions, noReview: saved.payload.noReview };
+                lsClear(num, data.week);
+              }
+            } catch(resendErr) {
+              console.warn('Resend failed:', resendErr);
+              // Show results from localStorage even if resend failed
+              resultsData = { questions: saved.gradedQuestions, noReview: saved.payload.noReview };
+            }
+          } else {
+            // No localStorage data — fallback to simple already-submitted screen
+            document.getElementById('login-loading').style.display = 'none';
+            document.getElementById('login-loading').textContent = 'Looking up your quiz…';
+            document.getElementById('already-score').textContent = `${data.score} / ${data.total}`;
+            document.getElementById('already-meta').textContent =
+              `Week ${data.week} · Submitted on ${new Date(data.submittedAt).toLocaleDateString()}`;
+            return show('already');
+          }
         }
 
         // Rebuild studentData and gradedQuestions from stored results
@@ -642,6 +676,8 @@ async function loadQuiz() {
 
     if (data.found) {
       isRelogin = false;
+      // Clear any stale localStorage for this student/week
+      lsClear(num, data.week);
       document.getElementById('relogin-notice').style.display = 'none';
       studentData = data;
       studentData.noReview = data.noReview === true;
@@ -912,6 +948,35 @@ function gradeAnswer(studentAnswer, correctAnswer) {
 }
 
 // ── SUBMIT QUIZ (go to review) ────────────────────────────────────────────────
+// ── LOCAL STORAGE SAFETY NET ─────────────────────────────────────────────────
+const LS_PREFIX = 'quiz_backup_';
+
+function lsSave(studentNumber, week, payload, gradedQs) {
+  try {
+    const key = LS_PREFIX + studentNumber + '_w' + week;
+    localStorage.setItem(key, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      payload,
+      gradedQuestions: gradedQs
+    }));
+  } catch(e) { console.warn('localStorage save failed:', e); }
+}
+
+function lsLoad(studentNumber, week) {
+  try {
+    const key = LS_PREFIX + studentNumber + '_w' + week;
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function lsClear(studentNumber, week) {
+  try {
+    const key = LS_PREFIX + studentNumber + '_w' + week;
+    localStorage.removeItem(key);
+  } catch(e) {}
+}
+
 function confirmSubmit() {
   const confirmed = confirm('Are you sure you want to submit? You cannot change your answers after submitting.');
   if (confirmed) submitQuiz(false);
@@ -1009,6 +1074,9 @@ async function submitQuiz(fromTimer) {
     questions: gradedQuestions
   };
 
+  // ── Save to localStorage immediately as safety net ───────
+  lsSave(studentData.studentNumber, studentData.week, payload, gradedQuestions);
+
   // ── Submit to Google Sheets NOW, before showing results ───
   // Retry up to 3 times if submission fails or row count is incomplete
   const MAX_RETRIES = 3;
@@ -1041,6 +1109,7 @@ async function submitQuiz(fromTimer) {
         const verifyData = await verifyRes.json();
         if (verifyData.complete) {
           submitSuccess = true;
+          lsClear(studentData.studentNumber, studentData.week);
           console.log(`Submission verified on attempt ${attempt}`);
           break;
         } else {
@@ -1055,9 +1124,10 @@ async function submitQuiz(fromTimer) {
   }
 
   if (!submitSuccess) {
+    // Data is saved in localStorage — student can re-login to resend
     const errBanner = document.createElement('div');
     errBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b83232;color:white;text-align:center;padding:0.75rem;font-size:0.9rem;z-index:999';
-    errBanner.textContent = '⚠️ Submission may be incomplete. Please tell your teacher immediately.';
+    errBanner.textContent = '⚠️ Connection issue — your answers have been saved. Please log in again to resubmit, or tell your teacher.';
     document.body.appendChild(errBanner);
   }
 
