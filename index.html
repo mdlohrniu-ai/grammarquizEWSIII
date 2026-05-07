@@ -883,17 +883,19 @@ function updateProgress() {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────────
 function startTimer() {
+  const endTime = Date.now() + testDuration * 60 * 1000;
   secondsLeft = testDuration * 60;
   updateTimerDisplay();
   timerInterval = setInterval(() => {
-    secondsLeft--;
+    // Anchor to wall clock — immune to setInterval drift
+    secondsLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
     updateTimerDisplay();
     if (secondsLeft <= 0) {
       clearInterval(timerInterval);
       timedOut = true;
       submitQuiz(true);
     }
-  }, 1000);
+  }, 500); // Poll twice per second so display stays accurate
 }
 
 function updateTimerDisplay() {
