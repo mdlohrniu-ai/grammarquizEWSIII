@@ -587,10 +587,36 @@ async function loadQuiz() {
     if (data.error) return showError('login-error', data.error);
 
     if (data.alreadySubmitted) {
-      // Fetch full results so student can review answers and update flags
+      // First check if results have been revealed yet —
+      // if not, send student back to waiting screen instead of showing results early
       document.getElementById('login-loading').style.display = 'block';
-      document.getElementById('login-loading').textContent = 'Loading your results…';
+      document.getElementById('login-loading').textContent = 'Checking quiz status…';
       try {
+        let revealed = true; // default to showing results if check fails
+        if (!MOCK_MODE) {
+          try {
+            const pollRes = await fetch(`${SCRIPT_URL}?action=pollResults&week=${encodeURIComponent(data.week)}`);
+            const pollData = await pollRes.json();
+            revealed = pollData.reveal === true;
+          } catch(pollErr) {
+            console.warn('Poll check failed, defaulting to show results:', pollErr);
+          }
+        }
+
+        if (!revealed) {
+          // Results not revealed yet — send back to waiting screen
+          document.getElementById('login-loading').style.display = 'none';
+          document.getElementById('login-loading').textContent = 'Looking up your quiz…';
+          // Set up minimal studentData so polling works
+          studentData = { studentNumber: num, name: data.name, week: data.week };
+          const sub = document.getElementById('waiting-results-sub');
+          if (sub) sub.textContent = data.name + ' · Week ' + data.week;
+          startPollForResults();
+          return;
+        }
+
+      // Fetch full results so student can review answers and update flags
+      document.getElementById('login-loading').textContent = 'Loading your results…';
         let resultsData;
         if (MOCK_MODE) {
           await new Promise(r => setTimeout(r, 600));
@@ -744,6 +770,24 @@ function startPollForResults() {
       if (data.reveal) {
         clearInterval(pollInterval);
         pollInterval = null;
+        // If gradedQuestions is empty (re-login path), fetch from server first
+        if (!gradedQuestions || gradedQuestions.length === 0) {
+          try {
+            const r2 = await fetch(`${SCRIPT_URL}?action=getResults&student=${encodeURIComponent(studentData.studentNumber)}&week=${encodeURIComponent(studentData.week)}`);
+            const rd = await r2.json();
+            if (rd.questions && rd.questions.length > 0) {
+              isRelogin = true;
+              studentData.noReview = rd.noReview === true;
+              gradedQuestions = rd.questions.map(q => ({
+                ...q, flagged: q.flagged || false, flagReason: q.flagReason || ''
+              }));
+              document.getElementById('relogin-notice').style.display = 'block';
+              document.getElementById('final-submit-btn').textContent = 'Save flags →';
+            }
+          } catch(fetchErr) {
+            console.warn('Could not fetch results after reveal:', fetchErr);
+          }
+        }
         renderResults(false);
       }
     } catch(err) {
