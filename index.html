@@ -851,16 +851,49 @@ function renderQuizBody() {
     if (q.isExample) {
       const ex = document.createElement('div');
       ex.className = 'example-block';
-      // Format the question the same way as real questions (replace blanks with input)
-      const exFormatted = q.question.replace(/_+/g,
-        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
-      );
+      const exBlankCount = (q.question.match(/_{3,}/g) || []).length;
+      const isDoublEx = exBlankCount >= 2;
+      // Format the question with circled markers if double-blank, else plain underline
+      let exFormatted;
+      const exMarkers = ['①', '②'];
+      if (isDoublEx) {
+        let bn = 0;
+        exFormatted = q.question.replace(/_+/g, function() {
+          const m = exMarkers[bn] || '';
+          bn++;
+          return '<span style="white-space:nowrap">' + m +
+            '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
+        });
+      } else {
+        exFormatted = q.question.replace(/_+/g,
+          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
+        );
+      }
+      // Build answer display — for double blanks split on comma
+      let exAnswerHtml;
+      if (isDoublEx && q.answer.indexOf(',') !== -1) {
+        const parts = q.answer.split(',');
+        const a1 = parts[0].trim().split(' / ')[0];
+        const a2 = parts.slice(1).join(',').trim().split(' / ')[0];
+        exAnswerHtml =
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
+          '<input class="q-input" type="text" value="' + a1.replace(/"/g,'&quot;') + '" readonly ' +
+          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
+          '<input class="q-input" type="text" value="' + a2.replace(/"/g,'&quot;') + '" readonly ' +
+          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '</div>';
+      } else {
+        exAnswerHtml = '<input class="q-input" type="text" value="' +
+          q.answer.split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
+          'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
+          'autocomplete="off" autocorrect="off" spellcheck="false">';
+      }
       ex.innerHTML =
         '<div class="example-label">📝 Example（例）</div>' +
         '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
-        '<input class="q-input" type="text" value="' + q.answer.split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
-        'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
-        'autocomplete="off" autocorrect="off" spellcheck="false">';
+        exAnswerHtml;
       body.appendChild(ex);
       i++;
       continue;
@@ -872,12 +905,27 @@ function renderQuizBody() {
     displayNum++;
     if (isFirstOfPair) {
       const q2 = qs[i + 1];
-      // Split question at blanks — show sentence once, two input boxes
       const row = document.createElement('div');
       row.className = 'question-row';
       row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
         '<div class="q-content">' +
-        '<div class="q-sentence">' + formatQuestionDouble(q.question, i, i+1) + '</div>' +
+        '<div class="q-sentence">' + formatQuestionDouble(q.question) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
+        '<input class="q-input" type="text" id="input-' + i + '"' +
+        ' placeholder="Your answer…"' +
+        ' oninput="saveAnswer(' + i + ', this.value)"' +
+        ' autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1">' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
+        '<input class="q-input" type="text" id="input-' + (i+1) + '"' +
+        ' placeholder="Your answer…"' +
+        ' oninput="saveAnswer(' + (i+1) + ', this.value)"' +
+        ' autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1">' +
+        '</div>' +
+        '</div>' +
         '</div>';
       body.appendChild(row);
       i += 2;
@@ -905,17 +953,16 @@ function formatQuestion(q) {
   return q.replace(/_+/g, '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>');
 }
 
-// For double-blank: inline input boxes replace the blanks in the sentence
-function formatQuestionDouble(q, idx1, idx2) {
+// For double-blank: replace blanks with numbered underline markers ①___ ②___
+function formatQuestionDouble(q) {
   let blankNum = 0;
+  const markers = ['①', '②'];
   return q.replace(/_+/g, function() {
-    const idx = blankNum === 0 ? idx1 : idx2;
-    const label = blankNum === 0 ? 'First blank' : 'Second blank';
+    const marker = markers[blankNum] || ('(' + (blankNum+1) + ')');
     blankNum++;
-    return '<input class="q-input-inline" type="text" id="input-' + idx + '"' +
-      ' placeholder="' + label + '"' +
-      ' oninput="saveAnswer(' + idx + ', this.value)"' +
-      ' autocomplete="off" autocorrect="off" spellcheck="false">';
+    return '<span style="white-space:nowrap">' + marker +
+      '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>' +
+      '</span>';
   });
 }
 
@@ -1394,15 +1441,45 @@ function renderResults(fromTimer) {
       }
       const ex = document.createElement('div');
       ex.className = 'example-block';
-      const exFormatted = q.question.replace(/_+/g,
-        '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
-      );
+      const exAns = q.answer || q.correctAnswer || '';
+      const exBlankCount2 = (q.question.match(/_{3,}/g) || []).length;
+      const isDoublEx2 = exBlankCount2 >= 2;
+      let exFormatted2;
+      const exM2 = ['①','②'];
+      if (isDoublEx2) {
+        let bn2 = 0;
+        exFormatted2 = q.question.replace(/_+/g, function() {
+          const m = exM2[bn2] || ''; bn2++;
+          return '<span style="white-space:nowrap">' + m +
+            '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
+        });
+      } else {
+        exFormatted2 = q.question.replace(/_+/g,
+          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
+        );
+      }
+      let exAnsHtml2;
+      if (isDoublEx2 && exAns.indexOf(',') !== -1) {
+        const p1 = exAns.split(',')[0].trim().split(' / ')[0];
+        const p2 = exAns.split(',').slice(1).join(',').trim().split(' / ')[0];
+        exAnsHtml2 =
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
+          '<input class="q-input" type="text" value="' + p1.replace(/"/g,'&quot;') + '" readonly ' +
+          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
+          '<input class="q-input" type="text" value="' + p2.replace(/"/g,'&quot;') + '" readonly ' +
+          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '</div>';
+      } else {
+        exAnsHtml2 = '<input class="q-input" type="text" value="' +
+          exAns.split(' / ')[0].replace(/"/g,'&quot;') + '" readonly ' +
+          'style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off">';
+      }
       ex.innerHTML =
         '<div class="example-label">📝 Example（例）</div>' +
-        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
-        '<input class="q-input" type="text" value="' + (q.answer || q.correctAnswer || '').split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
-        'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
-        'autocomplete="off" autocorrect="off" spellcheck="false">';
+        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted2 + '</div>' +
+        exAnsHtml2;
       body.appendChild(ex);
       j++;
       continue;
@@ -1449,7 +1526,7 @@ function renderResults(fromTimer) {
         const scoreDisplay = gq.score > 0 ? '+' + gq.score + ' pt' : '0 pt';
         return '<div class="answer-box ' + gq.result + '" id="answer-box-' + idx + '" style="margin-bottom:0.4rem">' +
           '<div class="answer-left">' +
-          '<div style="font-size:0.75rem;color:var(--ink-soft);margin-bottom:0.1rem">Blank ' + (gq.blankIndex + 1) + '</div>' +
+          '<div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:0.1rem">' + (gq.blankIndex === 0 ? '①' : '②') + '</div>' +
           '<div class="answer-given ' + gq.result + '">' + answerGiven + '</div>' +
           correctShow +
           '</div>' +
@@ -1459,11 +1536,22 @@ function renderResults(fromTimer) {
           '</div></div>';
       }
 
+      // Format sentence with ① ② markers for double-blank
+      let rFmtDouble;
+      {
+        let rbn = 0;
+        const rMk = ['①','②'];
+        rFmtDouble = q.question.replace(/_+/g, function() {
+          const m = rMk[rbn] || ''; rbn++;
+          return '<span style="white-space:nowrap">' + m +
+            '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
+        });
+      }
       const row = document.createElement('div');
       row.className = 'result-row';
       row.innerHTML = '<div class="q-num">' + displayNumR + '.</div>' +
         '<div class="result-content">' +
-        '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
+        '<div class="result-sentence">' + rFmtDouble + '</div>' +
         makeBlankResult(q, j) +
         makeBlankResult(q2, j + 1) +
         '</div>';
