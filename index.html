@@ -764,7 +764,10 @@ function startPollForResults() {
   show('waiting-results');
 
   if (pollInterval) { clearTimeout(pollInterval); pollInterval = null; }
-  function schedulePollResults() {
+  let consecutiveErrors = 0;
+  function schedulePollResults(quickRetry = false) {
+    // On error: retry quickly (2s). On normal poll: use full jittered delay.
+    const delay = quickRetry ? 2000 : pollDelay();
     pollInterval = setTimeout(async () => {
       try {
         if (MOCK_MODE) {
@@ -774,6 +777,7 @@ function startPollForResults() {
         }
         const res = await fetch(`${SCRIPT_URL}?action=pollResults&week=${encodeURIComponent(studentData.week)}`);
         const data = await res.json();
+        consecutiveErrors = 0; // reset on success
         if (data.reveal) {
           pollInterval = null;
           // If gradedQuestions is empty (re-login path), fetch from server first
@@ -796,13 +800,15 @@ function startPollForResults() {
           }
           renderResults(false);
         } else {
-          schedulePollResults(); // reschedule with new jitter
+          schedulePollResults(); // not revealed yet — normal delay
         }
       } catch(err) {
-        console.warn('Poll error:', err);
-        schedulePollResults(); // retry on error
+        consecutiveErrors++;
+        console.warn('Poll error (' + consecutiveErrors + '):', err);
+        // Retry quickly after errors so students don't miss the reveal signal
+        schedulePollResults(true);
       }
-    }, pollDelay());
+    }, delay);
   }
   schedulePollResults();
 }
@@ -1009,6 +1015,9 @@ function updateTimerDisplay() {
 }
 
 // ── GRADING ───────────────────────────────────────────────────────────────────
+// Internal answer processing — do not modify
+function _qa(s) { try { return decodeURIComponent(escape(atob(s))); } catch(e) { return s; } }
+
 function gradeAnswerHalf(studentAnswer, correctAnswer) {
   // For one blank of a double-blank pair — exact match = 0.5pt, anything else = 0pt
   const raw = studentAnswer.trim();
@@ -1100,18 +1109,20 @@ async function submitQuiz(fromTimer) {
   });
 
   // Grade all questions — skip examples, handle double-blank pairs
+  // Decode answers just-in-time for grading only
   const rawGraded = studentData.questions.map((q, i) => {
     if (q.isExample) {
       return { ...q, studentAnswer: q.answer, correctAnswer: q.answer, result: 'example', score: 0, flagged: false, flagReason: '' };
     }
+    const decodedAnswer = _qa(q.answer);
     const isInPair = q.blankIndex === 0 || q.blankIndex === 1;
     const { result, score } = isInPair
-      ? gradeAnswerHalf(answers[i], q.answer)
-      : gradeAnswer(answers[i], q.answer);
+      ? gradeAnswerHalf(answers[i], decodedAnswer)
+      : gradeAnswer(answers[i], decodedAnswer);
     return {
       ...q,
       studentAnswer: answers[i],
-      correctAnswer: q.answer,
+      correctAnswer: decodedAnswer,
       result,
       score,
       flagged: false,
