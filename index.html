@@ -477,64 +477,7 @@ const QUIZ_DURATION = 10 * 60; // 10 minutes in seconds
 const MOCK_MODE = false;
 const MOCK_SUBMITTED = {}; // tracks submissions during this session
 
-const MOCK_STUDENTS = {
-  '2511003': {
-    found: true,
-    studentNumber: 2511003,
-    name: 'Gaito ABE',
-    week: 1,
-    questions: [
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 1, question: "That man _____________ very friendly.", answer: "is" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 2, question: "My hands _____________ cold. Can I close the window?", answer: "are" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 3, question: "Canada _____________ a very big country.", answer: "is" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 4, question: "Tokyo _____________ the capital of Japan.", answer: "is" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 5, question: "Those people _____________ from Korea.", answer: "are" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 6, question: "The weather _____________ nice today.", answer: "isn't / is not" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 7, question: "We _____________ students. We're teachers.", answer: "aren't / are not" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 8, question: "I _____________ tired. I feel great.", answer: "'m not / am not" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 9, question: "The shops _____________ open on Sunday.", answer: "aren't / are not" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文)", part: "Part 2", instruction: "be動詞を使って、否定文を作りなさい。", number: 10, question: "She _____________ a doctor. She's a nurse.", answer: "isn't / is not" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 11, question: "(the stores / are / open today?) ________________________________________________________________________", answer: "Are the stores open today?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 12, question: "(from / where / you / are?) ________________________________________________________________________", answer: "Where are you from?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 13, question: "(is / home / your mother?) ________________________________________________________________________", answer: "Is your mother home?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 14, question: "(expensive / this hotel / is?) ________________________________________________________________________", answer: "Is this hotel expensive?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 15, question: "(at school / are / your children?) ________________________________________________________________________", answer: "Are your children at school?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 16, question: "Is London in France? (No) _____________________________", answer: "No, it isn't." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 17, question: "Is your car new? (Yes) _____________________________", answer: "Yes, it is." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 18, question: "Is your sister a doctor? (Yes) _____________________________", answer: "Yes, she is." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 19, question: "Are you interested in sports? (Yes) _____________________________", answer: "Yes, I am." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 20, question: "Are your parents from Tokyo? (No) _____________________________", answer: "No, they aren't." }
-    ]
-  },
-  '2511004': {
-    found: true,
-    studentNumber: 2511004,
-    name: 'Fuchi ABE',
-    week: 1,
-    questions: [
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 1, question: "(the stores / are / open today?) ________________________________________________________________________", answer: "Are the stores open today?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 2, question: "(from / where / you / are?) ________________________________________________________________________", answer: "Where are you from?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 3, question: "(is / home / your mother?) ________________________________________________________________________", answer: "Is your mother home?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 4, question: "(expensive / this hotel / is?) ________________________________________________________________________", answer: "Is this hotel expensive?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 1", instruction: "（ ）内の語句を正しい場所に並べ替えて、適切な疑問文を作りなさい。", number: 5, question: "(at school / are / your children?) ________________________________________________________________________", answer: "Are your children at school?" },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 6, question: "Is London in France? (No) _____________________________", answer: "No, it isn't." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 7, question: "Is your car new? (Yes) _____________________________", answer: "Yes, it is." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 8, question: "Is your sister a doctor? (Yes) _____________________________", answer: "Yes, she is." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 9, question: "Are you interested in sports? (Yes) _____________________________", answer: "Yes, I am." },
-      { unit: "Unit 2 - am/is/are (be動詞の疑問文)", part: "Part 2", instruction: "それぞれの質問に対して、ショートアンサーで答えなさい。(Yes / No で答える)", number: 10, question: "Are your parents from Tokyo? (No) _____________________________", answer: "No, they aren't." },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 11, question: "My sister _____________ a nurse.", answer: "is" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 12, question: "We _____________ hungry. Let's eat something.", answer: "are" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 13, question: "I _____________ a student at this university.", answer: "am" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 14, question: "These books _____________ very interesting.", answer: "are" },
-      { unit: "Unit 1 - am/is/are (be動詞の肯定文、否定文) [Review]", part: "Part 1", instruction: "am, is, are のいずれかを空所に入れなさい。", number: 15, question: "Tokyo _____________ a very busy city.", answer: "is" },
-      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 16, question: "She _____________ to music right now. (listen)", answer: "is listening" },
-      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 17, question: "They _____________ football in the park. (play)", answer: "are playing" },
-      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 18, question: "I _____________ a letter to my friend. (write)", answer: "am writing" },
-      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 19, question: "He _____________ dinner in the kitchen. (cook)", answer: "is cooking" },
-      { unit: "Unit 3 - I am doing (現在進行形) [Review]", part: "Part 1", instruction: "（ ）内の動詞を使って、現在進行形の文を作りなさい。", number: 20, question: "We _____________ for the bus. (wait)", answer: "are waiting" }
-    ]
-  }
-};
+
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let studentData = null;   // { studentNumber, name, week, questions }
@@ -574,8 +517,6 @@ async function loadQuiz() {
       if (MOCK_SUBMITTED[num]) {
         const sub = MOCK_SUBMITTED[num];
         data = { alreadySubmitted: true, name: sub.name, week: sub.week, score: sub.score, total: sub.total, submittedAt: new Date().toISOString() };
-      } else if (MOCK_STUDENTS[num]) {
-        data = MOCK_STUDENTS[num];
       } else {
         data = { error: 'Student number not found. Please check your number and try again.' };
       }
