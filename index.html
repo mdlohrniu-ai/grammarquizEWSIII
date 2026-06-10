@@ -476,22 +476,13 @@ const MOCK_MODE = false;
 const MOCK_SUBMITTED = {};
 
 // ── UNIT BACKGROUND COLORS ────────────────────────────────────────────────────
-// Muted tones assigned in order of first appearance; resets to default on results/done screens.
+// Applied as div wrappers around each unit's content, not the body background.
 const UNIT_BG_COLORS = [
   '#f0ede6', // Unit 1: warm parchment (default)
   '#dde8f0', // Unit 2: medium slate blue
   '#ddeedd', // Unit 3: medium sage green
   '#f0e0d8', // Unit 4: medium terracotta (fallback)
 ];
-
-function setUnitBackground(unitIndex) {
-  const color = UNIT_BG_COLORS[Math.min(unitIndex, UNIT_BG_COLORS.length - 1)];
-  document.body.style.backgroundColor = color;
-}
-
-function resetBackground() {
-  document.body.style.backgroundColor = '#f0ede6';
-}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let studentData = null;
@@ -760,6 +751,7 @@ function renderQuizBody() {
 
   let i = 0;
   let displayNum = 0;
+  let currentUnitDiv = null;
 
   while (i < qs.length) {
     const q = qs[i];
@@ -769,11 +761,15 @@ function renderQuizBody() {
 
       if (isNewUnit) {
         unitIndex++;
-        setUnitBackground(unitIndex);
+        const color = UNIT_BG_COLORS[Math.min(unitIndex, UNIT_BG_COLORS.length - 1)];
+        currentUnitDiv = document.createElement('div');
+        currentUnitDiv.style.cssText = `background:${color};border-radius:0.8rem;padding:0.75rem 1rem 1rem 1rem;margin-bottom:0.5rem;`;
+        body.appendChild(currentUnitDiv);
+
         const unitBlock = document.createElement('div');
         unitBlock.className = 'section-unit-block';
         unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
-        body.appendChild(unitBlock);
+        currentUnitDiv.appendChild(unitBlock);
       }
 
       const sectionKey = q.unit + '\x00' + q.part;
@@ -791,7 +787,7 @@ function renderQuizBody() {
       }
       secHtml += '</div>';
       sec.innerHTML = secHtml;
-      body.appendChild(sec);
+      currentUnitDiv.appendChild(sec);
 
       lastUnit = q.unit;
       lastPart = q.part;
@@ -835,7 +831,7 @@ function renderQuizBody() {
       ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
         '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
         exAnswerHtml;
-      body.appendChild(ex);
+      currentUnitDiv.appendChild(ex);
       i++;
       continue;
     }
@@ -859,7 +855,7 @@ function renderQuizBody() {
         '<span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
         '<input class="q-input" type="text" id="input-' + (i+1) + '" placeholder="Your answer…" oninput="saveAnswer(' + (i+1) + ',this.value)" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>' +
         '</div></div>';
-      body.appendChild(row);
+      currentUnitDiv.appendChild(row);
       i += 2;
     } else {
       const row = document.createElement('div');
@@ -869,7 +865,7 @@ function renderQuizBody() {
         '<div class="q-sentence">' + formatQuestion(q.question) + '</div>' +
         '<input class="q-input" type="text" id="input-' + i + '" placeholder="Your answer…" oninput="saveAnswer(' + i + ',this.value)" autocomplete="off" autocorrect="off" spellcheck="false">' +
         '</div>';
-      body.appendChild(row);
+      currentUnitDiv.appendChild(row);
       i++;
     }
   }
@@ -1084,7 +1080,6 @@ function calcUnitResults(questions) {
 
 // ── RENDER RESULTS ────────────────────────────────────────────────────────────
 function renderResults(fromTimer) {
-  resetBackground();
 
   let totalScore = 0, totalPossible = 0, ri = 0;
   while (ri < gradedQuestions.length) {
@@ -1371,7 +1366,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.2</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.3</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
