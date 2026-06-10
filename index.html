@@ -479,9 +479,9 @@ const MOCK_SUBMITTED = {};
 // Muted tones assigned in order of first appearance; resets to default on results/done screens.
 const UNIT_BG_COLORS = [
   '#f0ede6', // Unit 1: warm parchment (default)
-  '#e7edf5', // Unit 2: soft slate blue
-  '#eaf0e8', // Unit 3: soft sage
-  '#f4ece8', // Unit 4: soft terracotta (fallback)
+  '#dde8f0', // Unit 2: medium slate blue
+  '#ddeedd', // Unit 3: medium sage green
+  '#f0e0d8', // Unit 4: medium terracotta (fallback)
 ];
 
 function setUnitBackground(unitIndex) {
@@ -1371,7 +1371,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.1</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.2</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
