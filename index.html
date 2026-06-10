@@ -28,14 +28,11 @@ body {
   background: var(--bg);
   color: var(--ink);
   min-height: 100vh;
+  transition: background-color 0.35s ease;
 }
 
 /* ── SCREENS ── */
 .screen { display:none; min-height:100vh; }
-@keyframes pulse {
-  0%, 100% { opacity: 0.2; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
 .screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; }
 
 /* ── LOGIN ── */
@@ -99,8 +96,12 @@ body {
   color:var(--accent); font-weight:600;
   transition:color 0.3s;
 }
-.timer.warn { color:var(--timer-warn); animation:pulse 1s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.timer.warn { color:var(--timer-warn); animation:timerPulse 1s infinite; }
+@keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+@keyframes pulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
 
 .quiz-body { width:100%; max-width:760px; padding:2rem 1rem; display:flex; flex-direction:column; gap:2rem; }
 
@@ -128,6 +129,22 @@ body {
   margin-top:0.5rem;
   line-height:1.5;
 }
+
+/* Punctuation caution note */
+.punctuation-caution {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff8e0;
+  border: 1.5px solid #d4a820;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  margin-top: 0.5rem;
+  font-size: 0.88rem;
+  color: #7a5500;
+  line-height: 1.4;
+}
+
 .example-block {
   background:#F0F7FF;
   border:1.5px dashed var(--accent);
@@ -174,17 +191,6 @@ body {
 }
 .q-input:focus { border-color:var(--accent); }
 .q-input:disabled { background:var(--bg); color:var(--ink-soft); cursor:not-allowed; }
-.q-input-inline {
-  display:inline-block; width:160px;
-  padding:0.3rem 0.5rem;
-  border:none; border-bottom:2px solid var(--accent);
-  background:transparent; color:var(--ink);
-  font-family:'DM Sans',sans-serif; font-size:1rem;
-  outline:none; vertical-align:bottom;
-  transition:border-color 0.15s;
-}
-.q-input-inline:focus { border-bottom-color:var(--ink); }
-.q-input-inline::placeholder { color:var(--ink-soft); font-size:0.8rem; }
 
 /* Submit bar */
 .submit-bar {
@@ -274,12 +280,6 @@ body {
 }
 .pass-chip.pass { background: var(--green-light); color: var(--green); }
 .pass-chip.fail { background: var(--red-light); color: var(--red); }
-.overall-chip {
-  font-family: 'Fraunces', serif; font-size: 0.95rem;
-  padding: 0.3rem 0.9rem; border-radius: 2rem;
-}
-.overall-chip.pass { background: var(--green); color: white; }
-.overall-chip.fail { background: var(--red); color: white; }
 
 .timed-out-notice {
   background:var(--red-light); border:1.5px solid #f0b0b0;
@@ -342,7 +342,6 @@ body {
 }
 .btn-sm.cancel { background:var(--border); color:var(--ink); }
 .btn-sm.confirm { background:var(--red); color:white; }
-.btn-sm.unflag { background:var(--border); color:var(--ink); }
 
 @media(max-width:600px) {
   .quiz-header, .submit-bar, .results-header, .final-submit-bar { padding:0.8rem 1rem; }
@@ -354,7 +353,7 @@ body {
 
 <!-- LOGIN -->
 <div class="screen active" id="login">
-  <div class="logo">Grammar <span>Quiz</span></div>
+  <div class="logo">Grammar</div>
   <div class="login-card">
     <div style="text-align:center">
       <h2>Weekly Quiz</h2>
@@ -471,33 +470,63 @@ body {
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzcsKWO7NEytyagKr99cvANhcZTqf_VbwA6IK2hJNfFAFQO1SzSTG2LU1OvzNGF8-ztUg/exec';
-const QUIZ_DURATION = 10 * 60; // 10 minutes in seconds
+const QUIZ_DURATION = 10 * 60;
 
-// ── MOCK DATA (for testing — remove before going live) ────────────────────────
 const MOCK_MODE = false;
-const MOCK_SUBMITTED = {}; // tracks submissions during this session
+const MOCK_SUBMITTED = {};
 
+// ── UNIT BACKGROUND COLORS ────────────────────────────────────────────────────
+// Muted tones assigned in order of first appearance; resets to default on results/done screens.
+const UNIT_BG_COLORS = [
+  '#f0ede6', // Unit 1: warm parchment (default)
+  '#e7edf5', // Unit 2: soft slate blue
+  '#eaf0e8', // Unit 3: soft sage
+  '#f4ece8', // Unit 4: soft terracotta (fallback)
+];
 
+function setUnitBackground(unitIndex) {
+  const color = UNIT_BG_COLORS[Math.min(unitIndex, UNIT_BG_COLORS.length - 1)];
+  document.body.style.backgroundColor = color;
+}
+
+function resetBackground() {
+  document.body.style.backgroundColor = '#f0ede6';
+}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let studentData = null;   // { studentNumber, name, week, questions }
-let pollInterval = null;  // for waiting screen polls
-const POLL_INTERVAL_MS = 8000; // 8 seconds base — reduces server load
-// Random jitter: spreads requests so all students don't poll simultaneously
+let studentData = null;
+let pollInterval = null;
+const POLL_INTERVAL_MS = 8000;
 function pollDelay() { return POLL_INTERVAL_MS + Math.floor(Math.random() * 3000); }
-let isRelogin = false;    // true when student re-logs in after submission
-let testDuration = 10;    // minutes, loaded from server
-let answers = [];         // student's typed answers, indexed by question index
+let isRelogin = false;
+let testDuration = 10;
+let answers = [];
 let timerInterval = null;
 let secondsLeft = QUIZ_DURATION;
 let timedOut = false;
-let gradedQuestions = []; // after grading
+let gradedQuestions = [];
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
+}
+
+// ── GRADING DECODE ────────────────────────────────────────────────────────────
+function _qa(s) { try { return decodeURIComponent(escape(atob(s))); } catch(e) { return s; } }
+
+// ── PUNCTUATION CAUTION CHECK ─────────────────────────────────────────────────
+// Returns true if any non-example answer in this section ends with . or ?
+// Handles base64-encoded answers, slash alternatives, and comma-separated multi-blank answers.
+function sectionNeedsPunctuationWarning(sectionQuestions) {
+  return sectionQuestions.some(q => {
+    if (q.isExample || String(q.number).toUpperCase() === 'EX') return false;
+    let ans = q.answer || '';
+    try { const decoded = _qa(ans); if (decoded !== ans) ans = decoded; } catch(e) {}
+    // Check each comma-separated part, first slash alternative only
+    return ans.split(',').some(part => /[.?]\s*$/.test(part.trim().split(' / ')[0].trim()));
+  });
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
@@ -554,7 +583,7 @@ async function loadQuiz() {
           return;
         }
 
-      document.getElementById('login-loading').textContent = 'Loading your results…';
+        document.getElementById('login-loading').textContent = 'Loading your results…';
         let resultsData;
         if (MOCK_MODE) {
           await new Promise(r => setTimeout(r, 600));
@@ -572,8 +601,7 @@ async function loadQuiz() {
             try {
               document.getElementById('login-loading').textContent = 'Resending your answers…';
               await fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
+                method: 'POST', mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(saved.payload)
               });
@@ -603,18 +631,13 @@ async function loadQuiz() {
 
         isRelogin = true;
         studentData = {
-          studentNumber: num,
-          name: data.name,
-          week: data.week,
+          studentNumber: num, name: data.name, week: data.week,
           noReview: resultsData.noReview === true,
           questions: resultsData.questions
         };
         gradedQuestions = resultsData.questions.map(q => ({
-          ...q,
-          flagged: q.flagged || false,
-          flagReason: q.flagReason || ''
+          ...q, flagged: q.flagged || false, flagReason: q.flagReason || ''
         }));
-
         document.getElementById('relogin-notice').style.display = 'block';
         document.getElementById('final-submit-btn').textContent = 'Save flags →';
         renderResults(false);
@@ -651,28 +674,18 @@ async function loadQuiz() {
   }
 }
 
-// ── POLL FOR START ───────────────────────────────────────────────────────────
+// ── POLL FOR START ────────────────────────────────────────────────────────────
 function startPollForStart() {
   if (pollInterval) { clearTimeout(pollInterval); pollInterval = null; }
   function schedulePollStart() {
     pollInterval = setTimeout(async () => {
       try {
-        if (MOCK_MODE) {
-          startQuiz();
-          return;
-        }
+        if (MOCK_MODE) { startQuiz(); return; }
         const res = await fetch(`${SCRIPT_URL}?action=pollStart&week=${encodeURIComponent(studentData.week)}`);
         const data = await res.json();
-        if (data.started) {
-          pollInterval = null;
-          startQuiz();
-        } else {
-          schedulePollStart();
-        }
-      } catch(err) {
-        console.warn('Poll error:', err);
-        schedulePollStart();
-      }
+        if (data.started) { pollInterval = null; startQuiz(); }
+        else schedulePollStart();
+      } catch(err) { console.warn('Poll error:', err); schedulePollStart(); }
     }, pollDelay());
   }
   schedulePollStart();
@@ -690,11 +703,7 @@ function startPollForResults() {
     const delay = quickRetry ? 2000 : pollDelay();
     pollInterval = setTimeout(async () => {
       try {
-        if (MOCK_MODE) {
-          pollInterval = null;
-          renderResults(false);
-          return;
-        }
+        if (MOCK_MODE) { pollInterval = null; renderResults(false); return; }
         const res = await fetch(`${SCRIPT_URL}?action=pollResults&week=${encodeURIComponent(studentData.week)}`);
         const data = await res.json();
         consecutiveErrors = 0;
@@ -707,20 +716,14 @@ function startPollForResults() {
               if (rd.questions && rd.questions.length > 0) {
                 isRelogin = true;
                 studentData.noReview = rd.noReview === true;
-                gradedQuestions = rd.questions.map(q => ({
-                  ...q, flagged: q.flagged || false, flagReason: q.flagReason || ''
-                }));
+                gradedQuestions = rd.questions.map(q => ({ ...q, flagged: q.flagged || false, flagReason: q.flagReason || '' }));
                 document.getElementById('relogin-notice').style.display = 'block';
                 document.getElementById('final-submit-btn').textContent = 'Save flags →';
               }
-            } catch(fetchErr) {
-              console.warn('Could not fetch results after reveal:', fetchErr);
-            }
+            } catch(fetchErr) { console.warn('Could not fetch results after reveal:', fetchErr); }
           }
           renderResults(false);
-        } else {
-          schedulePollResults();
-        }
+        } else schedulePollResults();
       } catch(err) {
         consecutiveErrors++;
         console.warn('Poll error (' + consecutiveErrors + '):', err);
@@ -745,26 +748,51 @@ function renderQuizBody() {
   body.innerHTML = '';
   const qs = studentData.questions;
   let lastUnit = null, lastPart = null;
+  let unitIndex = -1;
+
+  // Pre-group questions by section for punctuation check
+  const sectionMap = {};
+  qs.forEach(q => {
+    const key = q.unit + '\x00' + q.part;
+    if (!sectionMap[key]) sectionMap[key] = [];
+    sectionMap[key].push(q);
+  });
 
   let i = 0;
   let displayNum = 0;
+
   while (i < qs.length) {
     const q = qs[i];
 
     if (q.unit !== lastUnit || q.part !== lastPart) {
       const isNewUnit = q.unit !== lastUnit;
+
       if (isNewUnit) {
+        unitIndex++;
+        setUnitBackground(unitIndex);
         const unitBlock = document.createElement('div');
         unitBlock.className = 'section-unit-block';
         unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
         body.appendChild(unitBlock);
       }
+
+      const sectionKey = q.unit + '\x00' + q.part;
+      const needsPunct = sectionNeedsPunctuationWarning(sectionMap[sectionKey] || []);
+
       const sec = document.createElement('div');
-      sec.innerHTML = '<div class="section-header">' +
+      let secHtml = '<div class="section-header">' +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction">' + q.instruction + '</div>' +
-        '</div>';
+        '<div class="section-instruction">' + q.instruction + '</div>';
+      if (needsPunct) {
+        secHtml += '<div class="punctuation-caution">' +
+          '<span style="font-size:1.1rem;flex-shrink:0">⚠️</span>' +
+          '<span>文末にピリオド（<strong>.</strong>）または疑問符（<strong>?</strong>）を忘れずに書いてください。</span>' +
+          '</div>';
+      }
+      secHtml += '</div>';
+      sec.innerHTML = secHtml;
       body.appendChild(sec);
+
       lastUnit = q.unit;
       lastPart = q.part;
     }
@@ -774,20 +802,18 @@ function renderQuizBody() {
       ex.className = 'example-block';
       const exBlankCount = (q.question.match(/_{3,}/g) || []).length;
       const isDoublEx = exBlankCount >= 2;
-      let exFormatted;
       const exMarkers = ['①', '②'];
+      let exFormatted;
       if (isDoublEx) {
         let bn = 0;
         exFormatted = q.question.replace(/_+/g, function() {
-          const m = exMarkers[bn] || '';
-          bn++;
+          const m = exMarkers[bn] || ''; bn++;
           return '<span style="white-space:nowrap">' + m +
             '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
         });
       } else {
         exFormatted = q.question.replace(/_+/g,
-          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
-        );
+          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>');
       }
       let exAnswerHtml;
       if (isDoublEx && q.answer.indexOf(',') !== -1) {
@@ -797,20 +823,16 @@ function renderQuizBody() {
         exAnswerHtml =
           '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
           '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
-          '<input class="q-input" type="text" value="' + a1.replace(/"/g,'&quot;') + '" readonly ' +
-          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '<input class="q-input" type="text" value="' + a1.replace(/"/g,'&quot;') + '" readonly style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
           '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
-          '<input class="q-input" type="text" value="' + a2.replace(/"/g,'&quot;') + '" readonly ' +
-          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '<input class="q-input" type="text" value="' + a2.replace(/"/g,'&quot;') + '" readonly style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
           '</div>';
       } else {
         exAnswerHtml = '<input class="q-input" type="text" value="' +
-          q.answer.split(' / ')[0].replace(/"/g, '&quot;') + '" ' +
-          'readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" ' +
-          'autocomplete="off" autocorrect="off" spellcheck="false">';
+          q.answer.split(' / ')[0].replace(/"/g,'&quot;') + '" readonly ' +
+          'style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off" autocorrect="off" spellcheck="false">';
       }
-      ex.innerHTML =
-        '<div class="example-label">📝 Example（例）</div>' +
+      ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
         '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
         exAnswerHtml;
       body.appendChild(ex);
@@ -818,7 +840,8 @@ function renderQuizBody() {
       continue;
     }
 
-    const isFirstOfPair = q.blankIndex === 0 && i + 1 < qs.length && qs[i+1].blankIndex === 1 && qs[i+1].question === q.question;
+    const isFirstOfPair = q.blankIndex === 0 && i + 1 < qs.length &&
+      qs[i+1].blankIndex === 1 && qs[i+1].question === q.question;
 
     displayNum++;
     if (isFirstOfPair) {
@@ -831,20 +854,11 @@ function renderQuizBody() {
         '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
         '<span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
-        '<input class="q-input" type="text" id="input-' + i + '"' +
-        ' placeholder="Your answer…"' +
-        ' oninput="saveAnswer(' + i + ', this.value)"' +
-        ' autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1">' +
-        '</div>' +
+        '<input class="q-input" type="text" id="input-' + i + '" placeholder="Your answer…" oninput="saveAnswer(' + i + ',this.value)" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
         '<span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
-        '<input class="q-input" type="text" id="input-' + (i+1) + '"' +
-        ' placeholder="Your answer…"' +
-        ' oninput="saveAnswer(' + (i+1) + ', this.value)"' +
-        ' autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1">' +
-        '</div>' +
-        '</div>' +
-        '</div>';
+        '<input class="q-input" type="text" id="input-' + (i+1) + '" placeholder="Your answer…" oninput="saveAnswer(' + (i+1) + ',this.value)" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>' +
+        '</div></div>';
       body.appendChild(row);
       i += 2;
     } else {
@@ -853,16 +867,12 @@ function renderQuizBody() {
       row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
         '<div class="q-content">' +
         '<div class="q-sentence">' + formatQuestion(q.question) + '</div>' +
-        '<input class="q-input" type="text" id="input-' + i + '"' +
-        ' placeholder="Your answer…"' +
-        ' oninput="saveAnswer(' + i + ', this.value)"' +
-        ' autocomplete="off" autocorrect="off" spellcheck="false">' +
+        '<input class="q-input" type="text" id="input-' + i + '" placeholder="Your answer…" oninput="saveAnswer(' + i + ',this.value)" autocomplete="off" autocorrect="off" spellcheck="false">' +
         '</div>';
       body.appendChild(row);
       i++;
     }
   }
-
   updateProgress();
 }
 
@@ -877,20 +887,16 @@ function formatQuestionDouble(q) {
     const marker = markers[blankNum] || ('(' + (blankNum+1) + ')');
     blankNum++;
     return '<span style="white-space:nowrap">' + marker +
-      '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>' +
-      '</span>';
+      '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
   });
 }
 
-function saveAnswer(i, val) {
-  answers[i] = val;
-  updateProgress();
-}
+function saveAnswer(i, val) { answers[i] = val; updateProgress(); }
 
 function updateProgress() {
   const nonExamples = studentData.questions.filter(q => !q.isExample && String(q.number).toUpperCase() !== 'EX');
   const total = nonExamples.length;
-  const answered = nonExamples.filter((q, i) => {
+  const answered = nonExamples.filter(q => {
     const idx = studentData.questions.indexOf(q);
     return answers[idx] && answers[idx].trim() !== '';
   }).length;
@@ -906,11 +912,7 @@ function startTimer() {
   timerInterval = setInterval(() => {
     secondsLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
     updateTimerDisplay();
-    if (secondsLeft <= 0) {
-      clearInterval(timerInterval);
-      timedOut = true;
-      submitQuiz(true);
-    }
+    if (secondsLeft <= 0) { clearInterval(timerInterval); timedOut = true; submitQuiz(true); }
   }, 500);
 }
 
@@ -923,8 +925,6 @@ function updateTimerDisplay() {
 }
 
 // ── GRADING ───────────────────────────────────────────────────────────────────
-function _qa(s) { try { return decodeURIComponent(escape(atob(s))); } catch(e) { return s; } }
-
 function gradeAnswerHalf(studentAnswer, correctAnswer) {
   const raw = studentAnswer.trim();
   if (raw === '') return { result: 'skipped', score: 0 };
@@ -938,56 +938,31 @@ function gradeAnswer(studentAnswer, correctAnswer) {
   if (raw === '') return { result: 'skipped', score: 0 };
   const accepted = correctAnswer.split(' / ').map(a => a.trim());
   if (accepted.some(a => a === raw)) return { result: 'correct', score: 1 };
-  if (accepted.some(a => a.toLowerCase() === raw.toLowerCase())) {
-    return { result: 'half', score: 0.5 };
-  }
+  if (accepted.some(a => a.toLowerCase() === raw.toLowerCase())) return { result: 'half', score: 0.5 };
   const strip = s => s.replace(/[''`".,!?;:]/g, '').toLowerCase().trim();
-  if (accepted.some(a => strip(a) === strip(raw))) {
-    return { result: 'half', score: 0.5 };
-  }
-  if (accepted.some(a => strip(a).toLowerCase() === strip(raw).toLowerCase())) {
-    return { result: 'half', score: 0.5 };
-  }
+  if (accepted.some(a => strip(a) === strip(raw))) return { result: 'half', score: 0.5 };
+  if (accepted.some(a => strip(a).toLowerCase() === strip(raw).toLowerCase())) return { result: 'half', score: 0.5 };
   return { result: 'wrong', score: 0 };
 }
 
-// ── LOCAL STORAGE SAFETY NET ─────────────────────────────────────────────────
+// ── LOCAL STORAGE SAFETY NET ──────────────────────────────────────────────────
 const LS_PREFIX = 'quiz_backup_';
-
 function lsSave(studentNumber, week, payload, gradedQs) {
-  try {
-    const key = LS_PREFIX + studentNumber + '_w' + week;
-    localStorage.setItem(key, JSON.stringify({
-      savedAt: new Date().toISOString(),
-      payload,
-      gradedQuestions: gradedQs
-    }));
-  } catch(e) { console.warn('localStorage save failed:', e); }
+  try { localStorage.setItem(LS_PREFIX + studentNumber + '_w' + week, JSON.stringify({ savedAt: new Date().toISOString(), payload, gradedQuestions: gradedQs })); } catch(e) {}
 }
-
 function lsLoad(studentNumber, week) {
-  try {
-    const key = LS_PREFIX + studentNumber + '_w' + week;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) { return null; }
+  try { const raw = localStorage.getItem(LS_PREFIX + studentNumber + '_w' + week); return raw ? JSON.parse(raw) : null; } catch(e) { return null; }
 }
-
 function lsClear(studentNumber, week) {
-  try {
-    const key = LS_PREFIX + studentNumber + '_w' + week;
-    localStorage.removeItem(key);
-  } catch(e) {}
+  try { localStorage.removeItem(LS_PREFIX + studentNumber + '_w' + week); } catch(e) {}
 }
 
 function confirmSubmit() {
-  const confirmed = confirm('Are you sure you want to submit? You cannot change your answers after submitting.');
-  if (confirmed) submitQuiz(false);
+  if (confirm('Are you sure you want to submit? You cannot change your answers after submitting.')) submitQuiz(false);
 }
 
 async function submitQuiz(fromTimer) {
   clearInterval(timerInterval);
-
   const submitBtn = document.getElementById('submit-btn');
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
 
@@ -997,122 +972,66 @@ async function submitQuiz(fromTimer) {
   });
 
   const rawGraded = studentData.questions.map((q, i) => {
-    if (q.isExample) {
-      return { ...q, studentAnswer: q.answer, correctAnswer: q.answer, result: 'example', score: 0, flagged: false, flagReason: '' };
-    }
+    if (q.isExample) return { ...q, studentAnswer: q.answer, correctAnswer: q.answer, result: 'example', score: 0, flagged: false, flagReason: '' };
     const decodedAnswer = _qa(q.answer);
     const isInPair = q.blankIndex === 0 || q.blankIndex === 1;
-    const { result, score } = isInPair
-      ? gradeAnswerHalf(answers[i], decodedAnswer)
-      : gradeAnswer(answers[i], decodedAnswer);
-    return {
-      ...q,
-      studentAnswer: answers[i],
-      correctAnswer: decodedAnswer,
-      result,
-      score,
-      flagged: false,
-      flagReason: ''
-    };
+    const { result, score } = isInPair ? gradeAnswerHalf(answers[i], decodedAnswer) : gradeAnswer(answers[i], decodedAnswer);
+    return { ...q, studentAnswer: answers[i], correctAnswer: decodedAnswer, result, score, flagged: false, flagReason: '' };
   });
 
   gradedQuestions = [];
   let gi = 0;
   while (gi < rawGraded.length) {
     const gq = rawGraded[gi];
-    const isFirstOfPair = gq.blankIndex === 0 &&
-      gi + 1 < rawGraded.length &&
-      rawGraded[gi+1].blankIndex === 1 &&
-      rawGraded[gi+1].question === gq.question;
-
+    const isFirstOfPair = gq.blankIndex === 0 && gi + 1 < rawGraded.length &&
+      rawGraded[gi+1].blankIndex === 1 && rawGraded[gi+1].question === gq.question;
     if (isFirstOfPair) {
       const gq2 = rawGraded[gi + 1];
       const combinedScore = gq.score + gq2.score;
       const combinedResult = combinedScore === 1 ? 'correct' : combinedScore > 0 ? 'half' : (gq.result === 'skipped' && gq2.result === 'skipped' ? 'skipped' : 'wrong');
-      gradedQuestions.push({ ...gq,  score: gq.score,  result: gq.result,  flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
+      gradedQuestions.push({ ...gq, score: gq.score, result: gq.result, flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
       gradedQuestions.push({ ...gq2, score: gq2.score, result: gq2.result, flagged: false, flagReason: '', pairScore: combinedScore, pairResult: combinedResult });
       gi += 2;
-    } else {
-      gradedQuestions.push(gq);
-      gi++;
-    }
+    } else { gradedQuestions.push(gq); gi++; }
   }
 
-  let totalScore = 0;
-  let totalPossible = 0;
-  let pi = 0;
+  let totalScore = 0, totalPossible = 0, pi = 0;
   while (pi < gradedQuestions.length) {
     const pq = gradedQuestions[pi];
     if (pq.isExample || String(pq.number).toUpperCase() === 'EX') { pi++; continue; }
     if (pq.blankIndex === 0 && pi + 1 < gradedQuestions.length && gradedQuestions[pi+1].blankIndex === 1) {
       totalScore += pq.pairScore !== undefined ? pq.pairScore : (pq.score + gradedQuestions[pi+1].score) / 2;
-      totalPossible += 1;
-      pi += 2;
-    } else {
-      totalScore += pq.score;
-      totalPossible += 1;
-      pi++;
-    }
+      totalPossible += 1; pi += 2;
+    } else { totalScore += pq.score; totalPossible += 1; pi++; }
   }
 
   const R = calcUnitResults(gradedQuestions);
   const payload = {
-    studentNumber: studentData.studentNumber,
-    name: studentData.name,
-    week: studentData.week,
-    score: totalScore,
-    total: totalPossible,
-    quizPoints: R.totalPoints,
-    newUnitPassed: R.newUnitPassed,
-    reviewUnitPassed: R.reviewUnitPassed,
-    bonusAttempt: R.bonusAttempt,
-    bonusEarned: R.bonusEarned,
-    allReview: R.allReview,
-    unitResults: R.units,
-    timedOut: timedOut,
-    questions: gradedQuestions
+    studentNumber: studentData.studentNumber, name: studentData.name, week: studentData.week,
+    score: totalScore, total: totalPossible, quizPoints: R.totalPoints,
+    newUnitPassed: R.newUnitPassed, reviewUnitPassed: R.reviewUnitPassed,
+    bonusAttempt: R.bonusAttempt, bonusEarned: R.bonusEarned,
+    allReview: R.allReview, unitResults: R.units, timedOut: timedOut, questions: gradedQuestions
   };
 
   lsSave(studentData.studentNumber, studentData.week, payload, gradedQuestions);
 
   const MAX_RETRIES = 3;
   let submitSuccess = false;
-
   if (MOCK_MODE) {
     await new Promise(r => setTimeout(r, 800));
-    MOCK_SUBMITTED[String(studentData.studentNumber)] = {
-      name: studentData.name, week: studentData.week,
-      score: R.totalPoints, total: 40
-    };
-    console.log('MOCK SUBMIT — payload:', JSON.stringify(payload, null, 2));
+    MOCK_SUBMITTED[String(studentData.studentNumber)] = { name: studentData.name, week: studentData.week, score: R.totalPoints, total: 40 };
     submitSuccess = true;
   } else {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const res = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         await new Promise(r => setTimeout(r, 1500));
-        const verifyRes = await fetch(
-          `${SCRIPT_URL}?action=verifySubmission&student=${encodeURIComponent(studentData.studentNumber)}&week=${encodeURIComponent(studentData.week)}`
-        );
+        const verifyRes = await fetch(`${SCRIPT_URL}?action=verifySubmission&student=${encodeURIComponent(studentData.studentNumber)}&week=${encodeURIComponent(studentData.week)}`);
         const verifyData = await verifyRes.json();
-        if (verifyData.complete) {
-          submitSuccess = true;
-          lsClear(studentData.studentNumber, studentData.week);
-          console.log(`Submission verified on attempt ${attempt}`);
-          break;
-        } else {
-          console.warn(`Attempt ${attempt}: incomplete write (${verifyData.written}/${verifyData.expected}), retrying...`);
-          if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
-        }
-      } catch(err) {
-        console.warn(`Attempt ${attempt} failed:`, err);
-        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
-      }
+        if (verifyData.complete) { submitSuccess = true; lsClear(studentData.studentNumber, studentData.week); break; }
+        else if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt));
+      } catch(err) { if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 2000 * attempt)); }
     }
   }
 
@@ -1127,78 +1046,60 @@ async function submitQuiz(fromTimer) {
   startPollForResults();
 }
 
-// ── UNIT PASS/FAIL LOGIC ─────────────────────────────────────────────────────
+// ── UNIT PASS/FAIL LOGIC ──────────────────────────────────────────────────────
 function calcUnitResults(questions) {
   const units = {};
   questions.forEach(q => {
     if (!units[q.unit]) units[q.unit] = { name: q.unit, questions: [] };
     units[q.unit].questions.push(q);
   });
-
   const unitList = Object.values(units).map(u => {
-    let total = 0;
-    let score = 0;
+    let total = 0, score = 0;
     u.questions.forEach(uq => {
       if (uq.isExample || String(uq.number).toUpperCase() === 'EX') return;
       if (uq.blankIndex === 1) return;
       total += 1;
-      if (uq.blankIndex === 0 && uq.pairScore !== undefined) {
-        score += uq.pairScore;
-      } else {
-        score += uq.score;
-      }
+      if (uq.blankIndex === 0 && uq.pairScore !== undefined) score += uq.pairScore;
+      else score += uq.score;
     });
     const isNew = total >= 10;
     const passmark = isNew ? 6 : 3;
-    const passed = score >= passmark;
-    return { name: u.name, score, total, passmark, passed, isNew };
+    return { name: u.name, score, total, passmark, passed: score >= passmark, isNew };
   });
 
-  const newUnits    = unitList.filter(u => u.isNew);
+  const newUnits = unitList.filter(u => u.isNew);
   const reviewUnits = unitList.filter(u => !u.isNew);
-  const allReview   = newUnits.length === 0;
+  const allReview = newUnits.length === 0;
   const noReview = studentData.noReview === true || reviewUnits.length === 0;
   const bonusAttempt = newUnits.length === 2;
-  const bonusEarned  = bonusAttempt && newUnits.every(u => u.passed);
-  const newUnitPassed    = !allReview && newUnits.every(u => u.passed);
+  const bonusEarned = bonusAttempt && newUnits.every(u => u.passed);
+  const newUnitPassed = !allReview && newUnits.every(u => u.passed);
   const reviewUnitPassed = noReview ? null : reviewUnits.every(u => u.passed);
-  const newPoints        = newUnitPassed ? 20 : 0;
-  const reviewPoints     = (noReview || reviewUnitPassed === null) ? null : (reviewUnitPassed ? 20 : 0);
-  const totalPoints      = newPoints + (reviewPoints || 0);
+  const newPoints = newUnitPassed ? 20 : 0;
+  const reviewPoints = (noReview || reviewUnitPassed === null) ? null : (reviewUnitPassed ? 20 : 0);
+  const totalPoints = newPoints + (reviewPoints || 0);
 
-  return {
-    units: unitList, newUnits, reviewUnits,
-    allReview, noReview, bonusAttempt, bonusEarned,
-    newUnitPassed, reviewUnitPassed,
-    newPoints, reviewPoints, totalPoints
-  };
+  return { units: unitList, newUnits, reviewUnits, allReview, noReview, bonusAttempt, bonusEarned, newUnitPassed, reviewUnitPassed, newPoints, reviewPoints, totalPoints };
 }
 
 // ── RENDER RESULTS ────────────────────────────────────────────────────────────
 function renderResults(fromTimer) {
-  let totalScore = 0;
-  let totalPossible = 0;
-  let ri = 0;
+  resetBackground();
+
+  let totalScore = 0, totalPossible = 0, ri = 0;
   while (ri < gradedQuestions.length) {
     const rq = gradedQuestions[ri];
     if (rq.isExample || String(rq.number).toUpperCase() === 'EX') { ri++; continue; }
     if (rq.blankIndex === 0 && ri + 1 < gradedQuestions.length && gradedQuestions[ri+1].blankIndex === 1) {
       totalScore += rq.pairScore !== undefined ? rq.pairScore : (rq.score + gradedQuestions[ri+1].score) / 2;
-      totalPossible += 1;
-      ri += 2;
-    } else {
-      totalScore += rq.score;
-      totalPossible += 1;
-      ri++;
-    }
+      totalPossible += 1; ri += 2;
+    } else { totalScore += rq.score; totalPossible += 1; ri++; }
   }
   const R = calcUnitResults(gradedQuestions);
 
-  document.getElementById('results-student').textContent =
-    studentData.name + ' · Week ' + studentData.week;
+  document.getElementById('results-student').textContent = studentData.name + ' · Week ' + studentData.week;
   const overallPassR = R.noReview ? R.newUnitPassed : (!R.allReview ? (R.newUnitPassed && R.reviewUnitPassed) : R.reviewUnitPassed);
-  document.getElementById('results-score-pill').innerHTML =
-    (overallPassR ? 'PASS' : 'FAIL') + ' &nbsp;·&nbsp; ' + totalScore + ' / ' + totalPossible;
+  document.getElementById('results-score-pill').innerHTML = (overallPassR ? 'PASS' : 'FAIL') + ' &nbsp;·&nbsp; ' + totalScore + ' / ' + totalPossible;
   document.getElementById('results-score-pill').style.background = overallPassR ? 'var(--green)' : 'var(--red)';
 
   const body = document.getElementById('results-body');
@@ -1230,28 +1131,23 @@ function renderResults(fromTimer) {
 
   function makeHeaderRow(label, passed, borderTop) {
     const color = passed ? 'var(--green)' : 'var(--red)';
-    const result = passed ? 'PASS' : 'FAIL';
     const topStyle = borderTop ? 'border-top:1px solid var(--border);padding-top:0.6rem;' : '';
     const d = document.createElement('div');
     d.style.cssText = 'font-size:0.75rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:0.3rem;' + topStyle + 'border-bottom:1px solid var(--border)';
-    d.innerHTML = label + ' — <span style="color:' + color + '">' + result + '</span>';
+    d.innerHTML = label + ' — <span style="color:' + color + '">' + (passed ? 'PASS' : 'FAIL') + '</span>';
     return d;
   }
-
   function makeUnitRow(u) {
     const d = document.createElement('div');
     d.className = 'unit-summary-row';
     d.innerHTML = '<div class="unit-summary-name">' + u.name + '</div>' +
-      '<div class="unit-summary-right">' +
-      '<span class="unit-score">' + u.score + ' / ' + u.total + ' (pass: ' + u.passmark + ')</span>' +
-      '<span class="pass-chip ' + (u.passed ? 'pass' : 'fail') + '">' + (u.passed ? 'Pass' : 'Fail') + '</span>' +
-      '</div>';
+      '<div class="unit-summary-right"><span class="unit-score">' + u.score + ' / ' + u.total + ' (pass: ' + u.passmark + ')</span>' +
+      '<span class="pass-chip ' + (u.passed ? 'pass' : 'fail') + '">' + (u.passed ? 'Pass' : 'Fail') + '</span></div>';
     return d;
   }
 
   if (!R.allReview) {
-    const nuLabel = 'New Unit' + (R.newUnits.length > 1 ? 's' : '');
-    summary.appendChild(makeHeaderRow(nuLabel, R.newUnitPassed, false));
+    summary.appendChild(makeHeaderRow('New Unit' + (R.newUnits.length > 1 ? 's' : ''), R.newUnitPassed, false));
     R.newUnits.forEach(u => summary.appendChild(makeUnitRow(u)));
     if (R.bonusAttempt) {
       const bonusDiv = document.createElement('div');
@@ -1260,16 +1156,14 @@ function renderResults(fromTimer) {
       summary.appendChild(bonusDiv);
     }
   }
-
   if (R.noReview && R.reviewUnits.length === 0) {
-    const noRevDiv = document.createElement('div');
-    noRevDiv.style.cssText = 'font-size:0.85rem;color:var(--ink-soft);padding:0.5rem 0;border-top:1px solid var(--border);font-style:italic';
-    noRevDiv.textContent = 'No review units this week.';
-    summary.appendChild(noRevDiv);
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:0.85rem;color:var(--ink-soft);padding:0.5rem 0;border-top:1px solid var(--border);font-style:italic';
+    d.textContent = 'No review units this week.';
+    summary.appendChild(d);
   } else {
-    const rvLabel = 'Review Unit' + (R.reviewUnits.length > 1 ? 's' : '');
     const rvPassed = R.reviewUnitPassed === null ? true : R.reviewUnitPassed;
-    summary.appendChild(makeHeaderRow(rvLabel, rvPassed, !R.allReview));
+    summary.appendChild(makeHeaderRow('Review Unit' + (R.reviewUnits.length > 1 ? 's' : ''), rvPassed, !R.allReview));
     R.reviewUnits.forEach(u => summary.appendChild(makeUnitRow(u)));
   }
 
@@ -1279,191 +1173,105 @@ function renderResults(fromTimer) {
   totalDiv.innerHTML = '<span style="font-weight:600;font-size:0.9rem">Overall Result</span>' +
     '<span style="font-family:Fraunces,serif;font-size:1.4rem;font-weight:700;color:' + (finalPass ? 'var(--green)' : 'var(--red)') + '">' + (finalPass ? 'PASS' : 'FAIL') + '</span>';
   summary.appendChild(totalDiv);
-
   body.appendChild(summary);
 
-  // Question rows
-  let lastUnit = null, lastPart = null;
-  let j = 0;
-  let displayNumR = 0;
-
+  let lastUnit = null, lastPart = null, j = 0, displayNumR = 0;
   while (j < gradedQuestions.length) {
     const q = gradedQuestions[j];
 
-    // Skip / render example blocks
     if (q.isExample || String(q.number).toUpperCase() === 'EX') {
       if (q.unit !== lastUnit || q.part !== lastPart) {
-        const isNewUnit = q.unit !== lastUnit;
-        if (isNewUnit) {
-          const unitBlock = document.createElement('div');
-          unitBlock.className = 'section-unit-block';
-          unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
-          body.appendChild(unitBlock);
+        if (q.unit !== lastUnit) {
+          const ub = document.createElement('div'); ub.className = 'section-unit-block';
+          ub.innerHTML = '<div class="section-unit">' + q.unit + '</div>'; body.appendChild(ub);
         }
         const sec = document.createElement('div');
-        sec.innerHTML = '<div class="section-header">' +
-          '<div class="section-part">' + q.part + '</div>' +
-          '<div class="section-instruction">' + q.instruction + '</div>' +
-          '</div>';
+        sec.innerHTML = '<div class="section-header"><div class="section-part">' + q.part + '</div><div class="section-instruction">' + q.instruction + '</div></div>';
         body.appendChild(sec);
-        lastUnit = q.unit;
-        lastPart = q.part;
+        lastUnit = q.unit; lastPart = q.part;
       }
-      const ex = document.createElement('div');
-      ex.className = 'example-block';
+      const ex = document.createElement('div'); ex.className = 'example-block';
       const exAns = q.answer || q.correctAnswer || '';
-      const exBlankCount2 = (q.question.match(/_{3,}/g) || []).length;
-      const isDoublEx2 = exBlankCount2 >= 2;
-      let exFormatted2;
-      const exM2 = ['①','②'];
-      if (isDoublEx2) {
-        let bn2 = 0;
-        exFormatted2 = q.question.replace(/_+/g, function() {
-          const m = exM2[bn2] || ''; bn2++;
-          return '<span style="white-space:nowrap">' + m +
-            '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
-        });
+      const exBlanks = (q.question.match(/_{3,}/g) || []).length;
+      const isDblEx = exBlanks >= 2;
+      const exM = ['①','②'];
+      let exFmt;
+      if (isDblEx) {
+        let bn = 0;
+        exFmt = q.question.replace(/_+/g, function() { const m = exM[bn]||''; bn++; return '<span style="white-space:nowrap">' + m + '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>'; });
       } else {
-        exFormatted2 = q.question.replace(/_+/g,
-          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>'
-        );
+        exFmt = q.question.replace(/_+/g, '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>');
       }
-      let exAnsHtml2;
-      if (isDoublEx2 && exAns.indexOf(',') !== -1) {
+      let exAnsHtml;
+      if (isDblEx && exAns.indexOf(',') !== -1) {
         const p1 = exAns.split(',')[0].trim().split(' / ')[0];
         const p2 = exAns.split(',').slice(1).join(',').trim().split(' / ')[0];
-        exAnsHtml2 =
-          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
-          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span>' +
-          '<input class="q-input" type="text" value="' + p1.replace(/"/g,'&quot;') + '" readonly ' +
-          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
-          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span>' +
-          '<input class="q-input" type="text" value="' + p2.replace(/"/g,'&quot;') + '" readonly ' +
-          'style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
-          '</div>';
+        exAnsHtml = '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">①</span><input class="q-input" type="text" value="' + p1.replace(/"/g,'&quot;') + '" readonly style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div>' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--accent);flex-shrink:0">②</span><input class="q-input" type="text" value="' + p2.replace(/"/g,'&quot;') + '" readonly style="flex:1;background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off"></div></div>';
       } else {
-        exAnsHtml2 = '<input class="q-input" type="text" value="' +
-          exAns.split(' / ')[0].replace(/"/g,'&quot;') + '" readonly ' +
-          'style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off">';
+        exAnsHtml = '<input class="q-input" type="text" value="' + exAns.split(' / ')[0].replace(/"/g,'&quot;') + '" readonly style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off">';
       }
-      ex.innerHTML =
-        '<div class="example-label">📝 Example（例）</div>' +
-        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted2 + '</div>' +
-        exAnsHtml2;
+      ex.innerHTML = '<div class="example-label">📝 Example（例）</div><div class="example-question" style="margin-bottom:0.5rem">' + exFmt + '</div>' + exAnsHtml;
       body.appendChild(ex);
-      j++;
-      continue;
+      j++; continue;
     }
 
     if (q.unit !== lastUnit || q.part !== lastPart) {
-      const isNewUnit = q.unit !== lastUnit;
-      if (isNewUnit) {
-        const unitBlock = document.createElement('div');
-        unitBlock.className = 'section-unit-block';
-        unitBlock.innerHTML = '<div class="section-unit">' + q.unit + '</div>';
-        body.appendChild(unitBlock);
+      if (q.unit !== lastUnit) {
+        const ub = document.createElement('div'); ub.className = 'section-unit-block';
+        ub.innerHTML = '<div class="section-unit">' + q.unit + '</div>'; body.appendChild(ub);
       }
       const sec = document.createElement('div');
-      sec.innerHTML = '<div class="section-header">' +
-        '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction">' + q.instruction + '</div>' +
-        '</div>';
+      sec.innerHTML = '<div class="section-header"><div class="section-part">' + q.part + '</div><div class="section-instruction">' + q.instruction + '</div></div>';
       body.appendChild(sec);
-      lastUnit = q.unit;
-      lastPart = q.part;
+      lastUnit = q.unit; lastPart = q.part;
     }
 
     const scoreLabels = { correct: '+1 pt', half: '+0.5 pt', wrong: '0 pt', skipped: '0 pt', example: '' };
-
     displayNumR++;
 
-    // ── FIXED: Detect double-blank pairs whether blankIndex is set or null ──
     const isFirstOfPair = (() => {
       if (j + 1 >= gradedQuestions.length) return false;
       const next = gradedQuestions[j + 1];
       if (q.isExample || next.isExample) return false;
       if (next.question !== q.question) return false;
-      // Live quiz path: blankIndex values are set
       if (q.blankIndex === 0 && next.blankIndex === 1) return true;
-      // Re-login path: blankIndex is null but same sentence, different question numbers
       if (q.blankIndex === null && next.blankIndex === null && next.number !== q.number) return true;
       return false;
     })();
 
     if (isFirstOfPair) {
       const q2 = gradedQuestions[j + 1];
-
-      // makeBlankResult uses `idx` compared to `j` to determine ① vs ②
       function makeBlankResult(gq, idx) {
         const canFlag = gq.result === 'wrong';
         const answerGiven = gq.result === 'skipped' ? 'No answer given' : (gq.studentAnswer || '(empty)');
-        const correctShow = (gq.result !== 'correct' && gq.result !== 'skipped')
-          ? '<div class="answer-correct-show">Correct: <span>' + gq.correctAnswer + '</span></div>' : '';
-        const flagBtn = canFlag
-          ? '<button class="flag-btn" id="flag-btn-' + idx + '" onclick="toggleFlag(' + idx + ')">🚩 Flag</button>' : '';
+        const correctShow = (gq.result !== 'correct' && gq.result !== 'skipped') ? '<div class="answer-correct-show">Correct: <span>' + gq.correctAnswer + '</span></div>' : '';
+        const flagBtn = canFlag ? '<button class="flag-btn" id="flag-btn-' + idx + '" onclick="toggleFlag(' + idx + ')">🚩 Flag</button>' : '';
         const scoreDisplay = gq.score > 0 ? '+' + gq.score + ' pt' : '0 pt';
-        // ① for first blank (idx === j), ② for second blank
         const marker = idx === j ? '①' : '②';
         return '<div class="answer-box ' + gq.result + '" id="answer-box-' + idx + '" style="margin-bottom:0.4rem">' +
-          '<div class="answer-left">' +
-          '<div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:0.1rem">' + marker + '</div>' +
-          '<div class="answer-given ' + gq.result + '">' + answerGiven + '</div>' +
-          correctShow +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">' +
-          '<span class="score-tag ' + gq.result + '">' + scoreDisplay + '</span>' +
-          flagBtn +
-          '</div></div>';
+          '<div class="answer-left"><div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:0.1rem">' + marker + '</div>' +
+          '<div class="answer-given ' + gq.result + '">' + answerGiven + '</div>' + correctShow + '</div>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><span class="score-tag ' + gq.result + '">' + scoreDisplay + '</span>' + flagBtn + '</div></div>';
       }
-
-      // Format sentence with ① ② markers
       let rFmtDouble;
-      {
-        let rbn = 0;
-        const rMk = ['①','②'];
-        rFmtDouble = q.question.replace(/_+/g, function() {
-          const m = rMk[rbn] || ''; rbn++;
-          return '<span style="white-space:nowrap">' + m +
-            '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
-        });
-      }
-      const row = document.createElement('div');
-      row.className = 'result-row';
-      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div>' +
-        '<div class="result-content">' +
-        '<div class="result-sentence">' + rFmtDouble + '</div>' +
-        makeBlankResult(q, j) +
-        makeBlankResult(q2, j + 1) +
-        '</div>';
-      body.appendChild(row);
-      j += 2;
+      { let rbn = 0; const rMk = ['①','②'];
+        rFmtDouble = q.question.replace(/_+/g, function() { const m = rMk[rbn]||''; rbn++; return '<span style="white-space:nowrap">' + m + '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>'; }); }
+      const row = document.createElement('div'); row.className = 'result-row';
+      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div><div class="result-content"><div class="result-sentence">' + rFmtDouble + '</div>' + makeBlankResult(q, j) + makeBlankResult(q2, j + 1) + '</div>';
+      body.appendChild(row); j += 2;
     } else {
-      // Normal single-blank question
       const canFlag = q.result === 'wrong' || q.result === 'half';
       const answerGiven = q.result === 'skipped' ? 'No answer given' : (q.studentAnswer || '(empty)');
-      const correctShow = (q.result !== 'correct' && q.result !== 'skipped')
-        ? '<div class="answer-correct-show">Correct: <span>' + q.correctAnswer + '</span></div>' : '';
-      const halfNote = q.result === 'half'
-        ? '<div class="answer-correct-show" style="color:var(--gold)">Capitalization or punctuation error</div>' : '';
-      const flagBtn = canFlag
-        ? '<button class="flag-btn" id="flag-btn-' + j + '" onclick="toggleFlag(' + j + ')">🚩 Flag</button>' : '';
-
-      const row = document.createElement('div');
-      row.className = 'result-row';
-      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div>' +
-        '<div class="result-content">' +
-        '<div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
-        '<div class="answer-box ' + q.result + '" id="answer-box-' + j + '">' +
-        '<div class="answer-left">' +
-        '<div class="answer-given ' + q.result + '">' + answerGiven + '</div>' +
-        correctShow + halfNote +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">' +
-        '<span class="score-tag ' + q.result + '">' + scoreLabels[q.result] + '</span>' +
-        flagBtn +
-        '</div></div></div>';
-      body.appendChild(row);
-      j++;
+      const correctShow = (q.result !== 'correct' && q.result !== 'skipped') ? '<div class="answer-correct-show">Correct: <span>' + q.correctAnswer + '</span></div>' : '';
+      const halfNote = q.result === 'half' ? '<div class="answer-correct-show" style="color:var(--gold)">Capitalization or punctuation error</div>' : '';
+      const flagBtn = canFlag ? '<button class="flag-btn" id="flag-btn-' + j + '" onclick="toggleFlag(' + j + ')">🚩 Flag</button>' : '';
+      const row = document.createElement('div'); row.className = 'result-row';
+      row.innerHTML = '<div class="q-num">' + displayNumR + '.</div><div class="result-content"><div class="result-sentence">' + formatQuestion(q.question) + '</div>' +
+        '<div class="answer-box ' + q.result + '" id="answer-box-' + j + '"><div class="answer-left"><div class="answer-given ' + q.result + '">' + answerGiven + '</div>' + correctShow + halfNote + '</div>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><span class="score-tag ' + q.result + '">' + scoreLabels[q.result] + '</span>' + flagBtn + '</div></div></div>';
+      body.appendChild(row); j++;
     }
   }
 
@@ -1475,11 +1283,9 @@ let pendingFlagIdx = null;
 
 function toggleFlag(i) {
   if (gradedQuestions[i].flagged) {
-    gradedQuestions[i].flagged = false;
-    gradedQuestions[i].flagReason = '';
+    gradedQuestions[i].flagged = false; gradedQuestions[i].flagReason = '';
     const btn = document.getElementById('flag-btn-' + i);
-    btn.classList.remove('flagged');
-    btn.textContent = '🚩 Flag';
+    btn.classList.remove('flagged'); btn.textContent = '🚩 Flag';
     updateFlagCount();
   } else {
     pendingFlagIdx = i;
@@ -1495,10 +1301,8 @@ function confirmFlag() {
   gradedQuestions[pendingFlagIdx].flagged = true;
   gradedQuestions[pendingFlagIdx].flagReason = reason;
   const btn = document.getElementById('flag-btn-' + pendingFlagIdx);
-  btn.classList.add('flagged');
-  btn.textContent = '🚩 Flagged';
-  updateFlagCount();
-  closeFlagModal();
+  btn.classList.add('flagged'); btn.textContent = '🚩 Flagged';
+  updateFlagCount(); closeFlagModal();
 }
 
 function closeFlagModal(event) {
@@ -1521,28 +1325,11 @@ async function finalSubmit() {
 
   const flagged = gradedQuestions.filter(q => q.flagged);
   if (flagged.length > 0) {
-    const flagPayload = {
-      studentNumber: studentData.studentNumber,
-      name: studentData.name,
-      week: studentData.week,
-      flagsOnly: true,
-      questions: gradedQuestions
-    };
+    const flagPayload = { studentNumber: studentData.studentNumber, name: studentData.name, week: studentData.week, flagsOnly: true, questions: gradedQuestions };
     try {
-      if (MOCK_MODE) {
-        await new Promise(r => setTimeout(r, 400));
-        console.log('MOCK FLAG SUBMIT — payload:', JSON.stringify(flagPayload, null, 2));
-      } else {
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(flagPayload)
-        });
-      }
-    } catch(err) {
-      console.warn('Flag submission error:', err);
-    }
+      if (MOCK_MODE) { await new Promise(r => setTimeout(r, 400)); }
+      else { await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(flagPayload) }); }
+    } catch(err) { console.warn('Flag submission error:', err); }
   }
 
   if (isRelogin) {
@@ -1558,59 +1345,20 @@ async function finalSubmit() {
 
   const newEl = document.getElementById('done-score-new');
   const revEl = document.getElementById('done-score-rev');
-  if (R2.allReview) {
-    newEl.textContent = 'N/A';
-    newEl.style.color = 'var(--ink-soft)';
-  } else {
-    newEl.textContent = R2.newUnitPassed ? 'PASS' : 'FAIL';
-    newEl.style.color = R2.newUnitPassed ? 'var(--green)' : 'var(--red)';
-  }
-  if (R2.noReview && R2.reviewUnits.length === 0) {
-    revEl.textContent = 'N/A';
-    revEl.style.color = 'var(--ink-soft)';
-  } else {
-    revEl.textContent = R2.reviewUnitPassed ? 'PASS' : 'FAIL';
-    revEl.style.color = R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)';
-  }
+  if (R2.allReview) { newEl.textContent = 'N/A'; newEl.style.color = 'var(--ink-soft)'; }
+  else { newEl.textContent = R2.newUnitPassed ? 'PASS' : 'FAIL'; newEl.style.color = R2.newUnitPassed ? 'var(--green)' : 'var(--red)'; }
+  if (R2.noReview && R2.reviewUnits.length === 0) { revEl.textContent = 'N/A'; revEl.style.color = 'var(--ink-soft)'; }
+  else { revEl.textContent = R2.reviewUnitPassed ? 'PASS' : 'FAIL'; revEl.style.color = R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)'; }
   document.getElementById('done-meta').textContent = 'Week ' + studentData.week + '  ·  Raw score: ' + totalScore + ' / ' + totalPossible;
 
   const doneBreakdown = document.getElementById('done-breakdown');
   let breakHTML = '';
-
-  if (R2.bonusAttempt) {
-    breakHTML += '<div style="font-size:0.82rem;font-weight:600;color:' + (R2.bonusEarned ? 'var(--green)' : 'var(--red)') + ';padding:0.3rem 0;text-align:center">' +
-      (R2.bonusEarned ? '★ +1 BONUS POINT' : '✗ NO BONUS POINT') + '</div>';
-  }
-
-  if (R2.allReview) {
-    breakHTML += '<div style="font-size:0.8rem;color:var(--red);padding:0.2rem 0;text-align:center">No new unit this week — new unit portion N/A</div>';
-  }
-
-  if (!R2.allReview) {
-    const newPassFail = R2.newUnitPassed ? 'PASS' : 'FAIL';
-    breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
-      '<span style="color:var(--ink-soft)">New Unit' + (R2.newUnits.length > 1 ? 's' : '') + '</span>' +
-      '<span style="font-weight:700;color:' + (R2.newUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + newPassFail + '</span>' +
-      '</div>';
-  }
-
-  if (R2.noReview && R2.reviewUnits.length === 0) {
-    breakHTML += '<div style="font-size:0.82rem;color:var(--ink-soft);padding:0.3rem 0;font-style:italic">No review units this week.</div>';
-  } else {
-    const revPassFail = R2.reviewUnitPassed ? 'PASS' : 'FAIL';
-    breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
-      '<span style="color:var(--ink-soft)">Review Unit' + (R2.reviewUnits.length > 1 ? 's' : '') + '</span>' +
-      '<span style="font-weight:700;color:' + (R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + revPassFail + '</span>' +
-      '</div>';
-  }
-
-  breakHTML += R2.units.map(u =>
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:0.25rem 0;padding-left:0.8rem">' +
-    '<span style="color:var(--ink-soft)">' + u.name + '</span>' +
-    '<span style="color:var(--ink-soft)">' + u.score + '/' + u.total + '</span>' +
-    '</div>'
-  ).join('');
-
+  if (R2.bonusAttempt) breakHTML += '<div style="font-size:0.82rem;font-weight:600;color:' + (R2.bonusEarned ? 'var(--green)' : 'var(--red)') + ';padding:0.3rem 0;text-align:center">' + (R2.bonusEarned ? '★ +1 BONUS POINT' : '✗ NO BONUS POINT') + '</div>';
+  if (R2.allReview) breakHTML += '<div style="font-size:0.8rem;color:var(--red);padding:0.2rem 0;text-align:center">No new unit this week — new unit portion N/A</div>';
+  if (!R2.allReview) breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--ink-soft)">New Unit' + (R2.newUnits.length > 1 ? 's' : '') + '</span><span style="font-weight:700;color:' + (R2.newUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + (R2.newUnitPassed ? 'PASS' : 'FAIL') + '</span></div>';
+  if (R2.noReview && R2.reviewUnits.length === 0) breakHTML += '<div style="font-size:0.82rem;color:var(--ink-soft);padding:0.3rem 0;font-style:italic">No review units this week.</div>';
+  else breakHTML += '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.85rem;padding:0.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--ink-soft)">Review Unit' + (R2.reviewUnits.length > 1 ? 's' : '') + '</span><span style="font-weight:700;color:' + (R2.reviewUnitPassed ? 'var(--green)' : 'var(--red)') + '">' + (R2.reviewUnitPassed ? 'PASS' : 'FAIL') + '</span></div>';
+  breakHTML += R2.units.map(u => '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:0.25rem 0;padding-left:0.8rem"><span style="color:var(--ink-soft)">' + u.name + '</span><span style="color:var(--ink-soft)">' + u.score + '/' + u.total + '</span></div>').join('');
   doneBreakdown.innerHTML = breakHTML;
   show('done');
 }
@@ -1618,11 +1366,12 @@ async function finalSubmit() {
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function showError(id, msg) {
   const el = document.getElementById(id);
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
+  el.textContent = msg; el.style.display = msg ? 'block' : 'none';
 }
 </script>
+
 <!-- FLAG MODAL -->
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.1</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
