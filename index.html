@@ -1051,14 +1051,19 @@ function calcUnitResults(questions) {
   });
   const unitList = Object.values(units).map(u => {
     let total = 0, score = 0;
+    let isNewFromFlag = false;
+    let hasIsNewFlag = false;
     u.questions.forEach(uq => {
       if (uq.isExample || String(uq.number).toUpperCase() === 'EX') return;
+      if (uq.isNew === true) isNewFromFlag = true;
+      if (uq.isNew !== undefined && uq.isNew !== null) hasIsNewFlag = true;
       if (uq.blankIndex === 1) return;
       total += 1;
       if (uq.blankIndex === 0 && uq.pairScore !== undefined) score += uq.pairScore;
       else score += uq.score;
     });
-    const isNew = total >= 10;
+    // Use isNew flag from question data if available; fall back to count for old quiz data
+    const isNew = hasIsNewFlag ? isNewFromFlag : total >= 10;
     const passmark = isNew ? 6 : 3;
     return { name: u.name, score, total, passmark, passed: score >= passmark, isNew };
   });
@@ -1366,7 +1371,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.3</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.4</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
