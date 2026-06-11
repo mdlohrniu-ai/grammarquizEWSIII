@@ -400,6 +400,16 @@ body {
   </div>
 </div>
 
+<!-- SUBMISSION CONFIRMATION -->
+<div class="screen" id="submit-confirm">
+  <div class="already-card" style="text-align:center;max-width:460px">
+    <div id="confirm-icon" style="font-size:2.5rem;margin-bottom:1rem">✓</div>
+    <h2 id="confirm-title" style="font-family:'Fraunces',serif;font-size:1.5rem;font-weight:400;margin-bottom:0.75rem"></h2>
+    <p id="confirm-msg" style="color:var(--ink-soft);font-size:0.95rem;line-height:1.6;margin-bottom:1.5rem"></p>
+    <button class="btn" id="confirm-btn" onclick="confirmSubmitContinue()" style="display:none">次へ →</button>
+  </div>
+</div>
+
 <!-- ALREADY SUBMITTED -->
 <div class="screen" id="already">
   <div class="already-card">
@@ -1031,14 +1041,35 @@ async function submitQuiz(fromTimer) {
     }
   }
 
-  if (!submitSuccess) {
-    const errBanner = document.createElement('div');
-    errBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b83232;color:white;text-align:center;padding:0.75rem;font-size:0.9rem;z-index:999';
-    errBanner.textContent = '⚠️ Connection issue — your answers have been saved. Please log in again to resubmit, or tell your teacher.';
-    document.body.appendChild(errBanner);
-  }
-
   window._submittedPayload = payload;
+  showSubmitConfirmation(submitSuccess);
+}
+
+function showSubmitConfirmation(success) {
+  const icon  = document.getElementById('confirm-icon');
+  const title = document.getElementById('confirm-title');
+  const msg   = document.getElementById('confirm-msg');
+  const btn   = document.getElementById('confirm-btn');
+
+  if (success) {
+    icon.textContent  = '✓';
+    icon.style.color  = 'var(--green)';
+    title.textContent = 'Answers successfully sent.';
+    title.style.color = 'var(--green)';
+    msg.textContent   = '回答が正常に送信されました。';
+    btn.style.display = 'block';
+  } else {
+    icon.textContent  = '⚠️';
+    icon.style.color  = 'var(--red)';
+    title.textContent = 'Answers were not successfully sent.';
+    title.style.color = 'var(--red)';
+    msg.innerHTML     = 'このタブを閉じないでください。すぐに先生に知らせてください。<br><br><span style="font-size:0.85rem;color:var(--ink-soft)">Please do not close this tab and tell your teacher immediately.</span>';
+    btn.style.display = 'none'; // no continue button on failure — must tell teacher
+  }
+  show('submit-confirm');
+}
+
+function confirmSubmitContinue() {
   startPollForResults();
 }
 
@@ -1371,7 +1402,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.4</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.5</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
