@@ -220,10 +220,11 @@ body {
 }
 .wb-drop {
   display:inline-flex; align-items:center; justify-content:center;
-  min-width:110px; height:28px; border:2px dashed var(--border);
-  border-radius:5px; padding:0 0.5rem; margin:0 3px; vertical-align:middle;
+  min-width:110px; min-height:28px; height:auto; border:2px dashed var(--border);
+  border-radius:5px; padding:0.15rem 0.5rem; margin:0 3px; vertical-align:middle;
   font-size:0.88rem; color:var(--ink); background:var(--bg);
   transition:border-color 0.12s, background 0.12s; position:relative;
+  white-space:normal; text-align:center; line-height:1.35;
 }
 .wb-drop.wb-dragover { border-color:var(--accent); background:var(--accent-light); }
 .wb-drop.wb-filled {
@@ -924,11 +925,15 @@ function renderQuizBody() {
         const qbOpts = exQ && exQ.qbOptions ? exQ.qbOptions.map(o => _qa(o)) : [];
         const exAns  = exQ ? exQ.answer : null;
 
-        // Auto-detect layout: if any answer is long (>25 chars), use stacked
-        // block layout (35.1-style matching); otherwise inline (35.2-style).
-        const LONG_ANSWER_THRESHOLD = 25;
-        const allOpts = qbOpts.concat(exAns ? [exAns] : []);
-        const isLongLayout = allOpts.some(o => (o || '').length > LONG_ANSWER_THRESHOLD);
+        // Auto-detect layout based on WHERE the blank is (not answer length):
+        //  • Blank mid-sentence (text follows it) → inline layout, so the gap
+        //    shows in its correct place within the sentence (35.2-style).
+        //  • Blank at the very end, or no blank at all (standalone prompt) →
+        //    stacked block layout, answer sits below (35.1-style matching).
+        // A section is stacked only if NONE of its questions have a
+        // mid-sentence blank (keeps the whole section's layout consistent).
+        const sectionHasMidBlank = sectionQs.some(sq => !sq.isExample && qbBlankIsMidSentence(sq.question));
+        const isLongLayout = !sectionHasMidBlank;
         if (!window._wbSectionLayout) window._wbSectionLayout = {};
         window._wbSectionLayout[sectionKey2] = isLongLayout;
 
@@ -1090,6 +1095,16 @@ function renderQuizBody() {
     }
   }
   updateProgress();
+}
+
+function qbBlankIsMidSentence(questionText) {
+  // Returns true if the question's blank has meaningful text after it (the
+  // blank sits mid-sentence). Returns false if the blank is at the end, or
+  // there is no blank (a standalone prompt, as in matching exercises).
+  const m = (questionText || '').match(/_{2,}/);
+  if (!m) return false;
+  const after = questionText.slice(m.index + m[0].length).replace(/[.?!、。？！\s]+$/, '').trim();
+  return after.length > 0;
 }
 
 function formatQuestionQB(q, dropId, qIndex) {
@@ -1784,7 +1799,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.11</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.12</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
