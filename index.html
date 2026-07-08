@@ -1,8 +1,3 @@
-<!-- ════════════════════════════════════════════════════
-     THIS FILE = EWSIII GRAMMAR QUIZ
-     SCRIPT_URL ends in: ...ztUg/exec
-     Upload as index.html in the "grammarquizEWSIII" repo
-════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,6 +191,59 @@ body {
 }
 .q-input:focus { border-color:var(--accent); }
 .q-input:disabled { background:var(--bg); color:var(--ink-soft); cursor:not-allowed; }
+
+/* ── WORD BANK (QB drag-and-drop) ─────────────────────── */
+.word-bank {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:0.8rem; padding:0.75rem 1rem; margin:0.5rem 0 0.75rem 0;
+}
+.word-bank-label {
+  font-size:0.72rem; font-weight:600; letter-spacing:0.07em;
+  text-transform:uppercase; color:var(--ink-soft); margin-bottom:0.5rem;
+}
+.word-bank-chips { display:flex; flex-wrap:wrap; gap:0.45rem; }
+.wb-chip {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:5px; padding:0.3rem 0.7rem;
+  font-size:0.88rem; color:var(--ink); cursor:grab; user-select:none;
+  transition:opacity 0.12s, background 0.12s;
+}
+.wb-chip:active { cursor:grabbing; }
+.wb-chip.wb-dragging { opacity:0.3; }
+.wb-chip.wb-used {
+  text-decoration:line-through; color:var(--ink-soft);
+  background:var(--bg); border-style:dashed; cursor:default;
+}
+.wb-chip.wb-example {
+  text-decoration:line-through; color:var(--ink-soft);
+  background:var(--bg); border-style:dashed; cursor:default; font-style:italic;
+}
+.wb-drop {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:110px; height:28px; border:2px dashed var(--border);
+  border-radius:5px; padding:0 0.5rem; margin:0 3px; vertical-align:middle;
+  font-size:0.88rem; color:var(--ink); background:var(--bg);
+  transition:border-color 0.12s, background 0.12s; position:relative;
+}
+.wb-drop.wb-dragover { border-color:var(--accent); background:var(--accent-light); }
+.wb-drop.wb-filled {
+  border-style:solid; border-color:var(--accent);
+  background:var(--accent-light); color:var(--accent); font-weight:500;
+}
+.wb-drop .wb-clear {
+  display:none; position:absolute; right:-7px; top:-7px;
+  width:15px; height:15px; border-radius:50%;
+  background:var(--ink-soft); color:white;
+  font-size:9px; border:none; cursor:pointer;
+  align-items:center; justify-content:center; line-height:1;
+}
+.wb-drop.wb-filled .wb-clear { display:flex; }
+.wb-ex-answer {
+  display:inline-flex; align-items:center;
+  background:var(--accent-light); border:1.5px solid var(--accent);
+  border-radius:5px; padding:1px 7px; margin:0 2px; vertical-align:middle;
+  color:var(--accent); font-weight:500; font-size:0.88rem;
+}
 
 /* Submit bar */
 .submit-bar {
@@ -833,10 +881,18 @@ function renderQuizBody() {
       const sectionKey = q.unit + '\x00' + q.part;
       const needsPunct = sectionNeedsPunctuationWarning(sectionMap[sectionKey] || []);
 
+      // Detect if this section is QB (word bank) — check first non-example q
+      const sectionKey2 = q.unit + '\x00' + q.part;
+      const sectionQs = sectionMap[sectionKey2] || [];
+      const sectionIsQB = sectionQs.some(sq => !sq.isExample && sq.isQB);
+
       const sec = document.createElement('div');
+      let dragInstr = sectionIsQB
+        ? '語句をドラッグして、正しい空所に当てはめなさい。' : '';
       let secHtml = '<div class="section-header">' +
         '<div class="section-part">' + q.part + '</div>' +
-        '<div class="section-instruction">' + q.instruction + '</div>';
+        '<div class="section-instruction">' + q.instruction +
+        (dragInstr ? ' ' + dragInstr : '') + '</div>';
       if (needsPunct) {
         secHtml += '<div class="punctuation-caution">' +
           '<span style="font-size:1.1rem;flex-shrink:0">⚠️</span>' +
@@ -846,6 +902,40 @@ function renderQuizBody() {
       secHtml += '</div>';
       sec.innerHTML = secHtml;
       currentUnitDiv.appendChild(sec);
+
+      // Word bank for QB sections
+      if (sectionIsQB) {
+        const exQ = sectionQs.find(sq => sq.isExample);
+        const qbOpts = exQ && exQ.qbOptions ? exQ.qbOptions.map(o => _qa(o)) : [];
+        const exAns  = exQ ? exQ.answer : null;
+        const wb = document.createElement('div');
+        wb.className = 'word-bank';
+        wb.id = 'wb-' + sectionKey2.replace(/[^a-zA-Z0-9]/g, '_');
+        let chipsHtml = '<div class="word-bank-label">Word bank</div><div class="word-bank-chips">';
+        if (exAns) {
+          chipsHtml += '<div class="wb-chip wb-example" data-value="' + exAns.replace(/"/g,'&quot;') + '">（例）' + exAns + '</div>';
+        }
+        qbOpts.forEach((opt, idx) => {
+          chipsHtml += '<div class="wb-chip" id="wbc-' + sectionKey2.replace(/[^a-zA-Z0-9]/g,'_') + '-' + idx + '" draggable="true" data-value="' + opt.replace(/"/g,'&quot;') + '">' + opt + '</div>';
+        });
+        chipsHtml += '</div>';
+        wb.innerHTML = chipsHtml;
+        currentUnitDiv.appendChild(wb);
+
+        // Attach drag listeners after appending
+        setTimeout(() => {
+          wb.querySelectorAll('.wb-chip[draggable="true"]').forEach(chip => {
+            chip.addEventListener('dragstart', () => {
+              window._wbDraggedChip = chip;
+              setTimeout(() => chip.classList.add('wb-dragging'), 0);
+            });
+            chip.addEventListener('dragend', () => {
+              chip.classList.remove('wb-dragging');
+              window._wbDraggedChip = null;
+            });
+          });
+        }, 0);
+      }
 
       lastUnit = q.unit;
       lastPart = q.part;
@@ -886,9 +976,17 @@ function renderQuizBody() {
           q.answer.split(' / ')[0].replace(/"/g,'&quot;') + '" readonly ' +
           'style="background:var(--accent-light);color:var(--accent);font-weight:600;cursor:default;" autocomplete="off" autocorrect="off" spellcheck="false">';
       }
-      ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
-        '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
-        exAnswerHtml;
+      // For QB examples, show answer as styled chip (no input)
+      if (q.isQB) {
+        const exQBFormatted = q.question.replace(/_+/g,
+          '<span class="wb-ex-answer">' + (q.answer || '').replace(/</g,'&lt;') + '</span>');
+        ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
+          '<div class="example-question" style="margin-bottom:0.5rem">' + exQBFormatted + '</div>';
+      } else {
+        ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
+          '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
+          exAnswerHtml;
+      }
       currentUnitDiv.appendChild(ex);
       i++;
       continue;
@@ -915,6 +1013,18 @@ function renderQuizBody() {
         '</div></div>';
       currentUnitDiv.appendChild(row);
       i += 2;
+    } else if (q.isQB) {
+      // QB question: drop zone instead of text input
+      const row = document.createElement('div');
+      row.className = 'question-row';
+      const dropId = 'wbdrop-' + i;
+      row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
+        '<div class="q-content">' +
+        '<div class="q-sentence">' + formatQuestionQB(q.question, dropId, i) + '</div>' +
+        '</div>';
+      currentUnitDiv.appendChild(row);
+      setTimeout(() => attachDropZone(dropId, i), 0);
+      i++;
     } else {
       const row = document.createElement('div');
       row.className = 'question-row';
@@ -928,6 +1038,58 @@ function renderQuizBody() {
     }
   }
   updateProgress();
+}
+
+function formatQuestionQB(q, dropId, qIndex) {
+  // Replace the first blank with a drop zone; any further blanks stay as underlines
+  let replaced = false;
+  return q.replace(/_+/g, function() {
+    if (!replaced) {
+      replaced = true;
+      return '<span class="wb-drop" id="' + dropId + '" data-qindex="' + qIndex + '">' +
+        '<span class="wb-drop-text">&nbsp;</span>' +
+        '<button class="wb-clear" onclick="clearDropZone(\'' + dropId + '\',' + qIndex + ')">✕</button>' +
+        '</span>';
+    }
+    return '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span>';
+  });
+}
+
+function attachDropZone(dropId, qIndex) {
+  const dz = document.getElementById(dropId);
+  if (!dz) return;
+  dz.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dz.classList.contains('wb-filled')) dz.classList.add('wb-dragover');
+  });
+  dz.addEventListener('dragleave', () => dz.classList.remove('wb-dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('wb-dragover');
+    const chip = window._wbDraggedChip;
+    if (!chip || dz.classList.contains('wb-filled')) return;
+    const val = chip.dataset.value;
+    dz.querySelector('.wb-drop-text').textContent = val;
+    dz.classList.add('wb-filled');
+    dz.dataset.usedChip = chip.id;
+    chip.classList.add('wb-used');
+    chip.setAttribute('draggable', 'false');
+    saveAnswer(qIndex, val);
+  });
+}
+
+function clearDropZone(dropId, qIndex) {
+  const dz = document.getElementById(dropId);
+  if (!dz) return;
+  const chipId = dz.dataset.usedChip;
+  if (chipId) {
+    const chip = document.getElementById(chipId);
+    if (chip) { chip.classList.remove('wb-used'); chip.setAttribute('draggable', 'true'); }
+    delete dz.dataset.usedChip;
+  }
+  dz.querySelector('.wb-drop-text').innerHTML = '&nbsp;';
+  dz.classList.remove('wb-filled');
+  saveAnswer(qIndex, '');
 }
 
 function formatQuestion(q) {
@@ -1525,23 +1687,10 @@ function showError(id, msg) {
   const el = document.getElementById(id);
   el.textContent = msg; el.style.display = msg ? 'block' : 'none';
 }
-
-// ── AUTO-LOGIN FROM DASHBOARD ──────────────────────────────────────────────
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const autoStudent = params.get('student');
-  if (autoStudent) {
-    const input = document.getElementById('student-num-input');
-    if (input) {
-      input.value = autoStudent;
-      loadQuiz();
-    }
-  }
-})();
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.7</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.8</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
