@@ -949,6 +949,7 @@ function renderQuizBody() {
 
         // Attach drag listeners after appending
         setTimeout(() => {
+          _wbInitAutoScroll();
           wb.querySelectorAll('.wb-chip[draggable="true"]').forEach(chip => {
             chip.addEventListener('dragstart', () => {
               window._wbDraggedChip = chip;
@@ -1073,7 +1074,8 @@ function renderQuizBody() {
         '<div class="q-sentence">' + qSentenceHtml + '</div>' +
         '</div>';
       currentUnitDiv.appendChild(row);
-      setTimeout(() => attachDropZone(dropId, i), 0);
+      const qbFixedIndex = i;
+      setTimeout(() => attachDropZone(dropId, qbFixedIndex), 0);
       i++;
     } else {
       const row = document.createElement('div');
@@ -1159,6 +1161,44 @@ function formatQuestionDouble(q) {
     return '<span style="white-space:nowrap">' + marker +
       '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);margin:0 2px;vertical-align:bottom">&nbsp;</span></span>';
   });
+}
+
+// ── Drag auto-scroll ──────────────────────────────────────────────────────────
+// Native drag-and-drop auto-scrolls down but is unreliable scrolling up.
+// This watches the cursor during any drag and smoothly scrolls the page both
+// directions when the cursor nears the top or bottom edge of the viewport.
+let _wbScrollRAF = null;
+let _wbScrollSpeed = 0;
+function _wbAutoScrollLoop() {
+  if (_wbScrollSpeed !== 0) {
+    window.scrollBy(0, _wbScrollSpeed);
+    _wbScrollRAF = requestAnimationFrame(_wbAutoScrollLoop);
+  } else {
+    _wbScrollRAF = null;
+  }
+}
+function _wbInitAutoScroll() {
+  if (window._wbAutoScrollReady) return;
+  window._wbAutoScrollReady = true;
+  const EDGE = 90;      // px from top/bottom edge that triggers scrolling
+  const MAX_SPEED = 14; // px per frame at the very edge
+  document.addEventListener('dragover', e => {
+    if (!window._wbDraggedChip) return;
+    const y = e.clientY;
+    const h = window.innerHeight;
+    if (y < EDGE) {
+      _wbScrollSpeed = -Math.ceil(MAX_SPEED * (EDGE - y) / EDGE);
+    } else if (y > h - EDGE) {
+      _wbScrollSpeed = Math.ceil(MAX_SPEED * (y - (h - EDGE)) / EDGE);
+    } else {
+      _wbScrollSpeed = 0;
+    }
+    if (_wbScrollSpeed !== 0 && _wbScrollRAF === null) {
+      _wbScrollRAF = requestAnimationFrame(_wbAutoScrollLoop);
+    }
+  });
+  document.addEventListener('drop', () => { _wbScrollSpeed = 0; });
+  document.addEventListener('dragend', () => { _wbScrollSpeed = 0; });
 }
 
 function saveAnswer(i, val) { answers[i] = val; updateProgress(); }
@@ -1744,7 +1784,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.9</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.11</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
