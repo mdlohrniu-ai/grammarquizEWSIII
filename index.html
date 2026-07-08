@@ -244,6 +244,20 @@ body {
   border-radius:5px; padding:1px 7px; margin:0 2px; vertical-align:middle;
   color:var(--accent); font-weight:500; font-size:0.88rem;
 }
+/* Stacked layout (long answers, 35.1-style matching) */
+.word-bank-chips.wb-stacked { flex-direction:column; flex-wrap:nowrap; }
+.wb-chip.wb-long { line-height:1.4; padding:0.42rem 0.75rem; }
+.wb-drop.wb-block {
+  display:block; min-width:0; height:auto; min-height:32px;
+  padding:0.4rem 1.8rem 0.4rem 0.7rem; margin:0.35rem 0 0 0;
+  text-align:left; justify-content:flex-start; line-height:1.4;
+  vertical-align:baseline;
+}
+.wb-drop.wb-block .wb-clear { right:6px; top:6px; width:17px; height:17px; font-size:10px; }
+.wb-ex-answer.wb-ex-block {
+  display:block; margin:0.35rem 0 0 0; padding:0.4rem 0.7rem;
+  border-radius:6px; line-height:1.4;
+}
 
 /* Submit bar */
 .submit-bar {
@@ -843,6 +857,7 @@ function startQuiz() {
 function renderQuizBody() {
   const body = document.getElementById('quiz-body');
   body.innerHTML = '';
+  window._wbSectionLayout = {};
   const qs = studentData.questions;
   let lastUnit = null, lastPart = null;
   let unitIndex = -1;
@@ -908,15 +923,25 @@ function renderQuizBody() {
         const exQ = sectionQs.find(sq => sq.isExample);
         const qbOpts = exQ && exQ.qbOptions ? exQ.qbOptions.map(o => _qa(o)) : [];
         const exAns  = exQ ? exQ.answer : null;
+
+        // Auto-detect layout: if any answer is long (>25 chars), use stacked
+        // block layout (35.1-style matching); otherwise inline (35.2-style).
+        const LONG_ANSWER_THRESHOLD = 25;
+        const allOpts = qbOpts.concat(exAns ? [exAns] : []);
+        const isLongLayout = allOpts.some(o => (o || '').length > LONG_ANSWER_THRESHOLD);
+        if (!window._wbSectionLayout) window._wbSectionLayout = {};
+        window._wbSectionLayout[sectionKey2] = isLongLayout;
+
         const wb = document.createElement('div');
         wb.className = 'word-bank';
         wb.id = 'wb-' + sectionKey2.replace(/[^a-zA-Z0-9]/g, '_');
-        let chipsHtml = '<div class="word-bank-label">Word bank</div><div class="word-bank-chips">';
+        let chipsHtml = '<div class="word-bank-label">Word bank</div><div class="word-bank-chips' + (isLongLayout ? ' wb-stacked' : '') + '">';
+        const chipCls = isLongLayout ? 'wb-chip wb-long' : 'wb-chip';
         if (exAns) {
-          chipsHtml += '<div class="wb-chip wb-example" data-value="' + exAns.replace(/"/g,'&quot;') + '">（例）' + exAns + '</div>';
+          chipsHtml += '<div class="' + chipCls + ' wb-example" data-value="' + exAns.replace(/"/g,'&quot;') + '">（例）' + exAns + '</div>';
         }
         qbOpts.forEach((opt, idx) => {
-          chipsHtml += '<div class="wb-chip" id="wbc-' + sectionKey2.replace(/[^a-zA-Z0-9]/g,'_') + '-' + idx + '" draggable="true" data-value="' + opt.replace(/"/g,'&quot;') + '">' + opt + '</div>';
+          chipsHtml += '<div class="' + chipCls + '" id="wbc-' + sectionKey2.replace(/[^a-zA-Z0-9]/g,'_') + '-' + idx + '" draggable="true" data-value="' + opt.replace(/"/g,'&quot;') + '">' + opt + '</div>';
         });
         chipsHtml += '</div>';
         wb.innerHTML = chipsHtml;
@@ -978,10 +1003,21 @@ function renderQuizBody() {
       }
       // For QB examples, show answer as styled chip (no input)
       if (q.isQB) {
-        const exQBFormatted = q.question.replace(/_+/g,
-          '<span class="wb-ex-answer">' + (q.answer || '').replace(/</g,'&lt;') + '</span>');
-        ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
-          '<div class="example-question" style="margin-bottom:0.5rem">' + exQBFormatted + '</div>';
+        const exSecKey = q.unit + '\x00' + q.part;
+        const exIsLong = window._wbSectionLayout && window._wbSectionLayout[exSecKey];
+        const exAnsText = (q.answer || '').replace(/</g,'&lt;');
+        if (exIsLong) {
+          // Long layout: question has no inline blank, answer sits below as a block
+          const exQClean = q.question.replace(/_+/g, '').replace(/\s+([.?!])/g, '$1').trim();
+          ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
+            '<div class="example-question">' + exQClean + '</div>' +
+            '<span class="wb-ex-answer wb-ex-block">' + exAnsText + '</span>';
+        } else {
+          const exQBFormatted = q.question.replace(/_+/g,
+            '<span class="wb-ex-answer">' + exAnsText + '</span>');
+          ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
+            '<div class="example-question" style="margin-bottom:0.5rem">' + exQBFormatted + '</div>';
+        }
       } else {
         ex.innerHTML = '<div class="example-label">📝 Example（例）</div>' +
           '<div class="example-question" style="margin-bottom:0.5rem">' + exFormatted + '</div>' +
@@ -1018,9 +1054,23 @@ function renderQuizBody() {
       const row = document.createElement('div');
       row.className = 'question-row';
       const dropId = 'wbdrop-' + i;
+      const qbSecKey = q.unit + '\x00' + q.part;
+      const qbIsLong = window._wbSectionLayout && window._wbSectionLayout[qbSecKey];
+      let qSentenceHtml;
+      if (qbIsLong) {
+        // Long layout: question text stays whole, drop zone as a block below
+        const qClean = q.question.replace(/_+/g, '').replace(/\s+([.?!])/g, '$1').trim();
+        qSentenceHtml = qClean +
+          '<span class="wb-drop wb-block" id="' + dropId + '" data-qindex="' + i + '">' +
+          '<span class="wb-drop-text" style="color:var(--ink-soft);font-style:italic;font-size:0.85rem">Drag your answer here…</span>' +
+          '<button class="wb-clear" onclick="clearDropZone(\'' + dropId + '\',' + i + ')">✕</button>' +
+          '</span>';
+      } else {
+        qSentenceHtml = formatQuestionQB(q.question, dropId, i);
+      }
       row.innerHTML = '<div class="q-num">' + displayNum + '.</div>' +
         '<div class="q-content">' +
-        '<div class="q-sentence">' + formatQuestionQB(q.question, dropId, i) + '</div>' +
+        '<div class="q-sentence">' + qSentenceHtml + '</div>' +
         '</div>';
       currentUnitDiv.appendChild(row);
       setTimeout(() => attachDropZone(dropId, i), 0);
@@ -1087,7 +1137,11 @@ function clearDropZone(dropId, qIndex) {
     if (chip) { chip.classList.remove('wb-used'); chip.setAttribute('draggable', 'true'); }
     delete dz.dataset.usedChip;
   }
-  dz.querySelector('.wb-drop-text').innerHTML = '&nbsp;';
+  if (dz.classList.contains('wb-block')) {
+    dz.querySelector('.wb-drop-text').innerHTML = '<span style="color:var(--ink-soft);font-style:italic;font-size:0.85rem">Drag your answer here…</span>';
+  } else {
+    dz.querySelector('.wb-drop-text').innerHTML = '&nbsp;';
+  }
   dz.classList.remove('wb-filled');
   saveAnswer(qIndex, '');
 }
@@ -1690,7 +1744,7 @@ function showError(id, msg) {
 </script>
 
 <!-- FLAG MODAL -->
-<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.8</div>
+<div style="position:fixed;bottom:0.6rem;right:0.8rem;font-size:0.72rem;color:var(--ink-soft);opacity:0.5;pointer-events:none;z-index:50">v1.9</div>
 <div class="flag-modal-overlay" id="flag-modal" style="display:none" onclick="closeFlagModal(event)">
   <div class="flag-modal">
     <h3>🚩 Flag this question</h3>
